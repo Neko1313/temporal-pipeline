@@ -1,0 +1,22 @@
+from pydantic import BaseModel, Field
+
+
+class StageExecutionResult(BaseModel):
+    stage_name: str
+    status: str
+    records_processed: int = 0
+    execution_time: float = 0.0
+    error_message: str | None = None
+    metadata: dict[str, any] | None = Field(default_factory=dict)
+    resilience_info: dict[str, any] = Field(default_factory=dict)
+
+
+class PipelineExecutionResult(BaseModel):
+    pipeline_name: str
+    run_id: str
+    status: str
+    total_records_processed: int = 0
+    total_execution_time: float = 0.0
+    stage_results: list[StageExecutionResult] | None = Field(default_factory=list)
+    error_message: str | None = None
+    execution_metadata: dict[str, any] = Field(default_factory=dict)

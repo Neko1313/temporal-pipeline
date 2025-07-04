@@ -1,0 +1,29 @@
+[project]
+name = "temporal-pipeline"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "core",
+    "sql_extract",
+    "polars>=1.31.0",
+    "pydantic>=2.11.7",
+    "pyyaml>=6.0.2",
+    "temporalio>=1.13.0",
+]
+
+[tool.uv.workspace]
+members = [
+    "core",
+    "plugins/sql_extract",
+]
+
+[tool.uv.sources]
+core = { workspace = true }
+sql_extract = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "ruff>=0.12.2",
+]

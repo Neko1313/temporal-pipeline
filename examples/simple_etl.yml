@@ -1,0 +1,62 @@
+name: "simple_user_etl"
+description: "Простой ETL для извлечения и загрузки пользователей"
+version: "1.0.0"
+author: "Data Team"
+tags: ["etl", "users", "simple"]
+
+schedule:
+  enabled: false
+
+default_resilience:
+  max_attempts: 3
+  initial_delay: 1.0
+  backoff_multiplier: 2.0
+  retry_policy: "exponential_backoff"
+  circuit_breaker_enabled: true
+  failure_threshold: 5
+  recovery_timeout: 60
+
+stages:
+  extract_users:
+    stage: extract
+    component: sqlalchemy_extract_processors
+    component_config:
+      query: |
+        SELECT 
+          user_id,
+          username,
+          email,
+          full_name,
+          created_at,
+          updated_at,
+          status
+        FROM users 
+        WHERE status = 'active'
+        ORDER BY created_at DESC
+      source_config:
+        uri: "${SOURCE_DATABASE_URL}"
+        headers: null
+
+  load_to_warehouse:
+    stage: load
+    component: sqlalchemy_load_processors
+    depends_on: [extract_users]
+    component_config:
+      target_table: "users_staging"
+      source_config:
+        uri: "${TARGET_DATABASE_URL}"
+        headers: null
+      if_exists: "replace"
+      batch_size: 500
+
+required_env_vars:
+  - SOURCE_DATABASE_URL
+  - TARGET_DATABASE_URL
+
+max_parallel_stages: 2
+
+notifications:
+  on_failure:
+    email: ["admin@company.com"]
+  on_success:
+    email: ["data-team@company.com"]

@@ -1,0 +1,14 @@
+from typing import Literal
+
+from pydantic import BaseModel, Field
+from core.component import ComponentConfig
+from core.yaml_loader.interfaces.resilience import ResilienceConfig
+
+
+class StageConfig(BaseModel):
+    stage: Literal["extract", "transform", "load"]
+    component: str = Field(..., min_length=1)
+    depends_on: list[str] = Field(default_factory=list)
+    component_config: ComponentConfig
+
+    resilience: ResilienceConfig = Field(default_factory=ResilienceConfig)
