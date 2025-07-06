@@ -8,7 +8,6 @@ members = [
     "csv-processor",
     "http-extract",
     "json-processor",
-    "postgres-load",
     "sql-extract",
     "temporal-pipeline",
 ]
@@ -576,25 +575,6 @@ wheels = [
 ]
 
 [[package]]
-name = "postgres-load"
-version = "1.0.0"
-source = { editable = "plugins/postgres_load" }
-dependencies = [
-    { name = "asyncpg" },
-    { name = "core" },
-    { name = "polars" },
-    { name = "pydantic" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "asyncpg", specifier = ">=0.28.0" },
-    { name = "core", editable = "core" },
-    { name = "polars", specifier = ">=1.31.0" },
-    { name = "pydantic", specifier = ">=2.11.7" },
-]
-
-[[package]]
 name = "pre-commit"
 version = "4.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -970,7 +950,6 @@ dependencies = [
     { name = "csv-processor" },
     { name = "http-extract" },
     { name = "json-processor" },
-    { name = "postgres-load" },
     { name = "sql-extract" },
 ]
 
@@ -991,7 +970,6 @@ requires-dist = [
     { name = "csv-processor", editable = "plugins/csv_processor" },
     { name = "http-extract", editable = "plugins/http_extract" },
     { name = "json-processor", editable = "plugins/json_processor" },
-    { name = "postgres-load", editable = "plugins/postgres_load" },
     { name = "sql-extract", editable = "plugins/sql_extract" },
 ]
 

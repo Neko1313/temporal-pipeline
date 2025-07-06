@@ -11,7 +11,6 @@ dependencies = [
     "csv_processor",
     "json_processor",
     "sql_extract",
-    "postgres_load",
     "http_extract",
 ]
 
@@ -22,7 +21,6 @@ members = [
     "plugins/csv_processor",
     "plugins/json_processor",
     "plugins/http_extract",
-    "plugins/postgres_load",
 ]
 
 [tool.uv.sources]
@@ -30,7 +28,6 @@ core = { workspace = true }
 sql_extract = { workspace = true }
 csv_processor = { workspace = true }
 json_processor = { workspace = true }
-postgres_load = { workspace = true }
 http_extract = { workspace = true }
 
 [dependency-groups]
