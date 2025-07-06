@@ -196,9 +196,8 @@ class SQLExtract(BaseProcessClass):
             raise ImportError(msg) from ie
 
         try:
-            # Создаем connection string для SQL Server
             self._connection_pool = await aioodbc.create_pool(
-                dsn=self.config.source_config.uri,
+                dsn=str(self.config.source_config.uri),
                 minsize=1,
                 maxsize=self.config.source_config.connection_pool_size,
             )
