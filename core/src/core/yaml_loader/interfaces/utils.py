@@ -22,8 +22,7 @@ def has_circular_dependencies(stages: dict[str, StageConfig]) -> bool:
         return False
 
     for stage_name in stages:
-        if stage_name not in visited:
-            if dfs(stage_name):
-                return True
+        if stage_name not in visited and dfs(stage_name):
+            return True
 
     return False

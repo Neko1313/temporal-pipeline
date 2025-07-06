@@ -1,4 +1,5 @@
-from typing import Literal, Any
+from typing import Any, Literal
+
 from pydantic import BaseModel, Field
 
 from core.component import ComponentConfig
@@ -18,7 +19,9 @@ class AuthConfig(BaseModel):
     username: str | None = Field(
         default=None, description="Имя пользователя для Basic Auth"
     )
-    password: str | None = Field(default=None, description="Пароль для Basic Auth")
+    password: str | None = Field(
+        default=None, description="Пароль для Basic Auth"
+    )
 
     # API Key
     api_key: str | None = Field(default=None, description="API ключ")
@@ -31,32 +34,44 @@ class AuthConfig(BaseModel):
         default=None, description="URL для получения OAuth2 токена"
     )
     client_id: str | None = Field(default=None, description="OAuth2 Client ID")
-    client_secret: str | None = Field(default=None, description="OAuth2 Client Secret")
+    client_secret: str | None = Field(
+        default=None, description="OAuth2 Client Secret"
+    )
     scope: str | None = Field(default=None, description="OAuth2 scope")
 
 
 class PaginationConfig(BaseModel):
     """Конфигурация пагинации"""
 
-    pagination_type: Literal["offset", "page", "cursor", "link_header", "none"] = Field(
+    pagination_type: Literal[
+        "offset", "page", "cursor", "link_header", "none"
+    ] = Field(
         ..., description="Тип пагинации: offset, page, cursor, link_header"
     )
 
     # Offset-based pagination
-    limit_param: str = Field(default="limit", description="Параметр для лимита")
-    offset_param: str = Field(default="offset", description="Параметр для смещения")
+    limit_param: str = Field(
+        default="limit", description="Параметр для лимита"
+    )
+    offset_param: str = Field(
+        default="offset", description="Параметр для смещения"
+    )
     default_limit: int = Field(default=100, description="Лимит по умолчанию")
     max_limit: int = Field(default=1000, description="Максимальный лимит")
 
     # Page-based pagination
-    page_param: str = Field(default="page", description="Параметр для номера страницы")
+    page_param: str = Field(
+        default="page", description="Параметр для номера страницы"
+    )
     page_size_param: str = Field(
         default="page_size", description="Параметр для размера страницы"
     )
     start_page: int = Field(default=1, description="Начальная страница")
 
     # Cursor-based pagination
-    cursor_param: str = Field(default="cursor", description="Параметр для курсора")
+    cursor_param: str = Field(
+        default="cursor", description="Параметр для курсора"
+    )
     next_cursor_path: str = Field(
         default="next_cursor", description="JSON path для следующего курсора"
     )
@@ -67,8 +82,12 @@ class PaginationConfig(BaseModel):
     )
 
     # Общие настройки
-    max_pages: int = Field(default=100, description="Максимальное количество страниц")
-    data_path: str = Field(default="data", description="JSON path к данным в ответе")
+    max_pages: int = Field(
+        default=100, description="Максимальное количество страниц"
+    )
+    data_path: str = Field(
+        default="data", description="JSON path к данным в ответе"
+    )
 
 
 class HTTPExtractConfig(ComponentConfig):
@@ -76,11 +95,15 @@ class HTTPExtractConfig(ComponentConfig):
 
     # Основные параметры
     url: str = Field(..., description="URL для запроса")
-    method: Literal["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"] = Field(
-        default="GET", description="HTTP метод"
+    method: Literal[
+        "GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"
+    ] = Field(default="GET", description="HTTP метод")
+    headers: dict[str, str] | None = Field(
+        default=None, description="HTTP заголовки"
     )
-    headers: dict[str, str] | None = Field(default=None, description="HTTP заголовки")
-    params: dict[str, Any] | None = Field(default=None, description="URL параметры")
+    params: dict[str, Any] | None = Field(
+        default=None, description="URL параметры"
+    )
 
     # Аутентификация
     auth_config: AuthConfig | None = Field(
@@ -134,7 +157,9 @@ class HTTPExtractConfig(ComponentConfig):
     )
 
     # Кэширование
-    cache_responses: bool = Field(default=False, description="Кэшировать ответы")
+    cache_responses: bool = Field(
+        default=False, description="Кэшировать ответы"
+    )
     cache_ttl: int = Field(default=3600, description="TTL кэша в секундах")
 
     # Rate limiting

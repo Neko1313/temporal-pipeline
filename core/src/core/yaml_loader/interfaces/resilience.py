@@ -9,7 +9,10 @@ class ResilienceConfig(BaseModel):
     max_delay: float = Field(default=60.0, ge=1.0)
     backoff_multiplier: float = Field(default=2.0, ge=1.0, le=5.0)
     retry_policy: Literal[
-        "exponential_backoff", "linear_backoff", "fixed_interval", "fibonacci_backoff"
+        "exponential_backoff",
+        "linear_backoff",
+        "fixed_interval",
+        "fibonacci_backoff",
     ] = "exponential_backoff"
     jitter: bool = True
 
@@ -21,5 +24,9 @@ class ResilienceConfig(BaseModel):
     execution_timeout: int | None = Field(default=None, ge=1)
 
     retryable_exceptions: list[str] = Field(
-        default_factory=lambda: ["ConnectionError", "TimeoutError", "TemporaryFailure"],
+        default_factory=lambda: [
+            "ConnectionError",
+            "TimeoutError",
+            "TemporaryFailure",
+        ],
     )

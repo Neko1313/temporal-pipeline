@@ -9,7 +9,9 @@ class PostgreSQLConnectionConfig(BaseModel):
     """Конфигурация подключения к PostgreSQL"""
 
     uri: PostgresDsn = Field(..., description="URI подключения к PostgreSQL")
-    pool_size: int = Field(default=5, ge=1, le=20, description="Размер пула соединений")
+    pool_size: int = Field(
+        default=5, ge=1, le=20, description="Размер пула соединений"
+    )
     pool_timeout: int = Field(
         default=30, ge=5, le=300, description="Таймаут пула соединений"
     )
@@ -19,7 +21,9 @@ class PostgreSQLConnectionConfig(BaseModel):
 
     # SSL настройки
     ssl_mode: str = Field(default="prefer", description="Режим SSL")
-    ssl_cert: str | None = Field(default=None, description="Путь к SSL сертификату")
+    ssl_cert: str | None = Field(
+        default=None, description="Путь к SSL сертификату"
+    )
     ssl_key: str | None = Field(default=None, description="Путь к SSL ключу")
 
 
@@ -45,13 +49,18 @@ class PostgreSQLLoadConfig(ComponentConfig):
     )
 
     # Целевая таблица
-    target_table: str = Field(..., min_length=1, description="Имя целевой таблицы")
-    target_schema: str = Field(default="public", description="Схема базы данных")
+    target_table: str = Field(
+        ..., min_length=1, description="Имя целевой таблицы"
+    )
+    target_schema: str = Field(
+        default="public", description="Схема базы данных"
+    )
 
     # Стратегия загрузки
     if_exists: Literal["append", "replace", "fail", "upsert"] = Field(
         default="append",
-        description="Что делать если таблица существует: append, replace, fail, upsert",
+        description="Что делать если таблица существует:\
+        append, replace, fail, upsert",
     )
 
     # Upsert конфигурация
@@ -84,7 +93,8 @@ class PostgreSQLLoadConfig(ComponentConfig):
     # Индексы
     create_indexes: list[dict[str, Any]] | None = Field(
         default=None,
-        description="Индексы для создания: [{columns: [col1, col2], unique: bool, name: str}]",
+        description="Индексы для создания:\
+        [{columns: [col1, col2], unique: bool, name: str}]",
     )
 
     # Валидация данных
@@ -92,7 +102,9 @@ class PostgreSQLLoadConfig(ComponentConfig):
         default=True, description="Валидировать данные перед загрузкой"
     )
     max_errors: int = Field(
-        default=0, ge=0, description="Максимум ошибок (0 = прервать при первой)"
+        default=0,
+        ge=0,
+        description="Максимум ошибок (0 = прервать при первой)",
     )
 
     # Метаданные

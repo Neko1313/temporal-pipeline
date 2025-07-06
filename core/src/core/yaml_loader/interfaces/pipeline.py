@@ -18,7 +18,9 @@ class PipelineConfig(BaseModel):
     default_timeout: int = Field(default=300, gt=0)
 
     # Global default resilience (can be overridden per stage)
-    default_resilience: ResilienceConfig = Field(default_factory=ResilienceConfig)
+    default_resilience: ResilienceConfig = Field(
+        default_factory=ResilienceConfig
+    )
 
     # Environment variables
     required_env_vars: list[str] = Field(default_factory=list)
@@ -32,12 +34,12 @@ class PipelineConfig(BaseModel):
         for stage_name, stage_config in v.items():
             missing_deps = set(stage_config.depends_on) - stage_names
             if missing_deps:
-                raise ValueError(
-                    f"Stage '{stage_name}' has missing dependencies: {missing_deps}"
-                )
+                msg = f"Stage '{stage_name}' has missing dependencies: {missing_deps}"
+                raise ValueError(msg)
 
         if has_circular_dependencies(v):
-            raise ValueError("Circular dependencies detected in stages")
+            msg = "Circular dependencies detected in stages"
+            raise ValueError(msg)
 
         return v
 

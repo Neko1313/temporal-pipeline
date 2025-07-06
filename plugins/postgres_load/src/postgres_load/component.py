@@ -3,15 +3,24 @@ PostgreSQL Load Plugin - Загрузка данных в PostgreSQL
 Поддерживает различные стратегии загрузки, батчинг, upsert операции
 """
 
-from typing import Optional, List
-import polars as pl
-import logging
 import asyncio
 import hashlib
-from datetime import datetime
+import logging
+from datetime import UTC, datetime
 
-from core.component import BaseProcessClass, Result, Info
+import polars as pl
+from asyncpg import Connection
+
+from core.component import BaseProcessClass, Info, Result
 from postgres_load.config import PostgreSQLLoadConfig
+from postgres_load.const import (
+    CREATE_INDEX_COMMAND,
+    CREATE_TABLE,
+    INSERT_BATCH_COMMAND,
+    INSERT_UPSERT_COMMAND,
+    SELECT_EXISTS_TABLE,
+    TRUNCATE_TABLE,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -31,26 +40,33 @@ class PostgreSQLLoad(BaseProcessClass):
     """
 
     config: PostgreSQLLoadConfig
+    table_alias: str | None
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self._connection_pool = None
         self._load_id = None
+        self.table_alias = None
 
     async def process(self) -> Result | None:
         """Основной метод обработки"""
         try:
-            logger.info(
-                f"Starting PostgreSQL load to table: {self.config.target_schema}.{self.config.target_table}"
+            self.table_alias = (
+                f"{self.config.target_schema}.{self.config.target_table}"
             )
-
+            logger.info(
+                f"Starting PostgreSQL load to table: {self.table_alias}"
+            )
             # Получаем входные данные
             input_data = self._get_input_data()
             if input_data is None or len(input_data) == 0:
                 logger.warning("No input data to load")
                 return Result(
                     status="success",
-                    response={"records_loaded": 0, "message": "No data to load"},
+                    response={
+                        "records_loaded": 0,
+                        "message": "No data to load",
+                    },
                 )
 
             original_count = len(input_data)
@@ -80,32 +96,34 @@ class PostgreSQLLoad(BaseProcessClass):
                 await self._create_indexes()
 
             logger.info(
-                f"Successfully loaded {loaded_count} rows to {self.config.target_schema}.{self.config.target_table}"
+                "Successfully loaded %s rows to %s",
+                loaded_count,
+                self.table_alias,
             )
 
             return Result(
                 status="success",
                 response={
                     "records_loaded": loaded_count,
-                    "table": f"{self.config.target_schema}.{self.config.target_table}",
+                    "table": self.table_alias,
                     "load_id": self._load_id,
                     "original_count": original_count,
                 },
             )
 
         except Exception as e:
-            logger.error(f"PostgreSQL load failed: {str(e)}")
+            logger.error(f"PostgreSQL load failed: {e!s}")
             return Result(status="error", response=None)
         finally:
             await self._disconnect()
 
-    def _get_input_data(self) -> Optional[pl.DataFrame]:
+    def _get_input_data(self) -> pl.DataFrame | None:
         """Получение входных данных"""
         if hasattr(self.config, "input_data") and self.config.input_data:
             if isinstance(self.config.input_data, dict):
                 if "records" in self.config.input_data:
                     return pl.DataFrame(self.config.input_data["records"])
-                elif "dependencies" in self.config.input_data:
+                if "dependencies" in self.config.input_data:
                     # Берем данные из первой зависимости
                     deps = self.config.input_data["dependencies"]
                     if deps:
@@ -134,7 +152,9 @@ class PostgreSQLLoad(BaseProcessClass):
         if self.config.add_load_metadata:
             data = await self._add_load_metadata(data)
 
-        logger.debug(f"Prepared data: {len(data)} rows, {len(data.columns)} columns")
+        logger.debug(
+            f"Prepared data: {len(data)} rows, {len(data.columns)} columns"
+        )
         return data
 
     async def _add_load_metadata(self, data: pl.DataFrame) -> pl.DataFrame:
@@ -143,14 +163,22 @@ class PostgreSQLLoad(BaseProcessClass):
             metadata_additions = []
 
             if "loaded_at" in self.config.metadata_columns:
-                metadata_additions.append(pl.lit(datetime.now()).alias("loaded_at"))
+                metadata_additions.append(
+                    pl.lit(datetime.now(tz=UTC)).alias("loaded_at")
+                )
 
             if "load_id" in self.config.metadata_columns:
-                metadata_additions.append(pl.lit(self._load_id).alias("load_id"))
+                metadata_additions.append(
+                    pl.lit(self._load_id).alias("load_id")
+                )
 
             if "source_file" in self.config.metadata_columns:
-                source_info = getattr(self.config, "source_file", "etl_pipeline")
-                metadata_additions.append(pl.lit(source_info).alias("source_file"))
+                source_info = getattr(
+                    self.config, "source_file", "etl_pipeline"
+                )
+                metadata_additions.append(
+                    pl.lit(source_info).alias("source_file")
+                )
 
             if metadata_additions:
                 data = data.with_columns(metadata_additions)
@@ -166,16 +194,13 @@ class PostgreSQLLoad(BaseProcessClass):
         try:
             original_count = len(data)
 
-            # Удаляем строки со всеми NULL значениями
             data = data.filter(~pl.all_horizontal(pl.all().is_null()))
-
-            # Проверяем на пустые обязательные колонки
-            # (здесь можно добавить специфичные проверки)
 
             validated_count = len(data)
             if validated_count < original_count:
                 logger.info(
-                    f"Removed {original_count - validated_count} invalid rows during validation"
+                    "Removed %s invalid rows during validation",
+                    original_count - validated_count,
                 )
 
             return data
@@ -186,14 +211,14 @@ class PostgreSQLLoad(BaseProcessClass):
                 raise
             return data
 
-    async def _connect(self):
+    async def _connect(self) -> None:
         """Установка соединения с PostgreSQL"""
         try:
-            import asyncpg
-        except ImportError:
-            raise ImportError(
-                "asyncpg library is required for PostgreSQL support. Install it with: pip install asyncpg"
-            )
+            import asyncpg  # noqa:PLC0415
+        except ImportError as ex:
+            msg = "asyncpg library is required for PostgreSQL support.\
+            Install it with: pip install asyncpg"
+            raise ImportError(msg) from ex
 
         try:
             # Создаем пул соединений
@@ -209,16 +234,17 @@ class PostgreSQLLoad(BaseProcessClass):
 
             logger.debug("PostgreSQL connection pool created")
 
-        except Exception as e:
-            raise Exception(f"Failed to connect to PostgreSQL: {e}")
+        except Exception as ex:
+            msg = f"Failed to connect to PostgreSQL: {ex}"
+            raise Exception(msg) from ex
 
-    async def _disconnect(self):
+    async def _disconnect(self) -> None:
         """Закрытие соединения"""
         if self._connection_pool:
             await self._connection_pool.close()
             logger.debug("PostgreSQL connection pool closed")
 
-    async def _prepare_target_table(self, data: pl.DataFrame):
+    async def _prepare_target_table(self, data: pl.DataFrame) -> None:
         """Подготовка целевой таблицы"""
         async with self._connection_pool.acquire() as conn:
             # Проверяем существование таблицы
@@ -227,93 +253,107 @@ class PostgreSQLLoad(BaseProcessClass):
             if not table_exists and self.config.create_table:
                 await self._create_table(conn, data)
             elif not table_exists:
-                raise Exception(
-                    f"Table {self.config.target_schema}.{self.config.target_table} does not exist and create_table=False"
-                )
+                msg = f"Table {self.table_alias}\
+                does not exist and create_table=False"
+                raise Exception(msg)
 
             # Обрабатываем стратегию if_exists
             if table_exists and self.config.if_exists == "replace":
                 await self._truncate_table(conn)
             elif table_exists and self.config.if_exists == "fail":
-                raise Exception(
-                    f"Table {self.config.target_schema}.{self.config.target_table} already exists and if_exists='fail'"
-                )
+                msg = f"Table {self.table_alias}\
+                already exists and if_exists='fail'"
+                raise Exception(msg)
 
-    async def _table_exists(self, conn) -> bool:
+    async def _table_exists(self, conn: Connection) -> bool:
         """Проверка существования таблицы"""
-        query = """
-        SELECT EXISTS (
-            SELECT FROM information_schema.tables 
-            WHERE table_schema = $1 AND table_name = $2
+        return await conn.fetchval(
+            SELECT_EXISTS_TABLE,
+            self.config.target_schema,
+            self.config.target_table,
         )
-        """
-        result = await conn.fetchval(
-            query, self.config.target_schema, self.config.target_table
-        )
-        return result
 
-    async def _create_table(self, conn, data: pl.DataFrame):
-        """Создание таблицы"""
+    async def _create_table(
+        self, conn: Connection, data: pl.DataFrame
+    ) -> None:
         logger.info(
-            f"Creating table {self.config.target_schema}.{self.config.target_table}"
+            "Creating table %s",
+            self.table_alias,
         )
 
-        # Определяем типы колонок на основе данных
+        column_definitions = self._generate_column_definitions(data)
+        metadata_definitions = self._generate_metadata_columns(data)
+        column_definitions.extend(metadata_definitions)
+
+        table_options = self._generate_table_options()
+
+        create_query = CREATE_TABLE.format(
+            table=self.table_alias,
+            column_definitions=", ".join(column_definitions),
+            table_options=table_options,
+        )
+
+        await conn.execute(create_query)
+        logger.info("Table %s created successfully", self.table_alias)
+
+    def _generate_column_definitions(self, data: pl.DataFrame) -> list[str]:
         column_definitions = []
 
         for column in data.columns:
             dtype = data[column].dtype
-
-            if dtype == pl.Int64:
-                pg_type = "BIGINT"
-            elif dtype == pl.Int32:
-                pg_type = "INTEGER"
-            elif dtype == pl.Float64:
-                pg_type = "DOUBLE PRECISION"
-            elif dtype == pl.Float32:
-                pg_type = "REAL"
-            elif dtype == pl.Boolean:
-                pg_type = "BOOLEAN"
-            elif dtype == pl.Date:
-                pg_type = "DATE"
-            elif dtype == pl.Datetime:
-                pg_type = "TIMESTAMP"
-            else:
-                pg_type = "TEXT"
-
+            pg_type = self._map_polars_type_to_postgres(dtype)
             column_definitions.append(f'"{column}" {pg_type}')
 
-        # Добавляем метаданные колонки
-        if self.config.add_load_metadata and self.config.metadata_columns:
-            for col_name, col_type in self.config.metadata_columns.items():
-                if col_name not in data.columns:
-                    column_definitions.append(f'"{col_name}" {col_type}')
+        return column_definitions
 
-        # Дополнительные опции таблицы
-        table_options = ""
-        if self.config.table_options:
-            if "with_options" in self.config.table_options:
-                table_options = f"WITH ({self.config.table_options['with_options']})"
+    def _generate_metadata_columns(self, data: pl.DataFrame) -> list[str]:
+        if not (
+            self.config.add_load_metadata and self.config.metadata_columns
+        ):
+            return []
 
-        create_query = f"""
-        CREATE TABLE "{self.config.target_schema}"."{self.config.target_table}" (
-            {", ".join(column_definitions)}
-        ) {table_options}
-        """
+        return [
+            f'"{col_name}" {col_type}'
+            for col_name, col_type in self.config.metadata_columns.items()
+            if col_name not in data.columns
+        ]
 
-        await conn.execute(create_query)
-        logger.info(
-            f"Table {self.config.target_schema}.{self.config.target_table} created successfully"
-        )
+    def _generate_table_options(self) -> str:
+        if (
+            self.config.table_options
+            and "with_options" in self.config.table_options
+        ):
+            return f"WITH ({self.config.table_options['with_options']})"
+        return ""
 
-    async def _truncate_table(self, conn):
+    def _map_polars_type_to_postgres(self, dtype: pl.DataType) -> str:  # noqa:PLR0911
+        match dtype:
+            case pl.Int64:
+                return "BIGINT"
+            case pl.Int32:
+                return "INTEGER"
+            case pl.Float64:
+                return "DOUBLE PRECISION"
+            case pl.Float32:
+                return "REAL"
+            case pl.Boolean:
+                return "BOOLEAN"
+            case pl.Date:
+                return "DATE"
+            case pl.Datetime:
+                return "TIMESTAMP"
+            case _:
+                return "TEXT"
+
+    async def _truncate_table(self, conn: Connection) -> None:
         """Очистка таблицы"""
-        query = (
-            f'TRUNCATE TABLE "{self.config.target_schema}"."{self.config.target_table}"'
+        query = TRUNCATE_TABLE.format(
+            table=self.table_alias,
         )
         await conn.execute(query)
         logger.info(
-            f"Table {self.config.target_schema}.{self.config.target_table} truncated"
+            "Table %s truncated",
+            self.table_alias,
         )
 
     async def _load_data(self, data: pl.DataFrame) -> int:
@@ -367,7 +407,8 @@ class PostgreSQLLoad(BaseProcessClass):
     async def _upsert_data(self, data: pl.DataFrame) -> int:
         """Upsert данных (INSERT ... ON CONFLICT)"""
         if not self.config.upsert_config:
-            raise ValueError("upsert_config is required for upsert operation")
+            msg = "upsert_config is required for upsert operation"
+            raise ValueError(msg)
 
         total_loaded = 0
         batches = self._create_batches(data)
@@ -383,7 +424,7 @@ class PostgreSQLLoad(BaseProcessClass):
 
         return total_loaded
 
-    def _create_batches(self, data: pl.DataFrame) -> List[pl.DataFrame]:
+    def _create_batches(self, data: pl.DataFrame) -> list[pl.DataFrame]:
         """Создание батчей данных"""
         batches = []
         total_rows = len(data)
@@ -393,7 +434,8 @@ class PostgreSQLLoad(BaseProcessClass):
             batches.append(batch)
 
         logger.debug(
-            f"Created {len(batches)} batches of max size {self.config.batch_size}"
+            f"Created {len(batches)}\
+            batches of max size {self.config.batch_size}"
         )
         return batches
 
@@ -421,10 +463,11 @@ class PostgreSQLLoad(BaseProcessClass):
             columns_str = ", ".join(f'"{col}"' for col in columns)
             placeholders = ", ".join(f"${i + 1}" for i in range(len(columns)))
 
-            insert_query = f"""
-            INSERT INTO "{self.config.target_schema}"."{self.config.target_table}" 
-            ({columns_str}) VALUES ({placeholders})
-            """
+            insert_query = INSERT_BATCH_COMMAND.format(
+                table=self.table_alias,
+                columns_str=columns_str,
+                placeholders=placeholders,
+            )
 
             # Выполняем вставку
             try:
@@ -440,7 +483,7 @@ class PostgreSQLLoad(BaseProcessClass):
         """Upsert одного батча"""
         async with self._connection_pool.acquire() as conn:
             columns = batch.columns
-            values = [row for row in batch.iter_rows()]
+            values = list(batch.iter_rows())
 
             if not values:
                 return 0
@@ -453,7 +496,9 @@ class PostgreSQLLoad(BaseProcessClass):
 
             # Определяем колонки для обновления
             update_columns = upsert_config.update_columns or [
-                col for col in columns if col not in upsert_config.conflict_columns
+                col
+                for col in columns
+                if col not in upsert_config.conflict_columns
             ]
 
             update_set = ", ".join(
@@ -464,14 +509,14 @@ class PostgreSQLLoad(BaseProcessClass):
                 f'"{col}"' for col in upsert_config.conflict_columns
             )
 
-            upsert_query = f"""
-            INSERT INTO "{self.config.target_schema}"."{self.config.target_table}" 
-            ({columns_str}) VALUES ({placeholders})
-            ON CONFLICT ({conflict_columns_str}) 
-            DO UPDATE SET {update_set}
-            """
+            upsert_query = INSERT_UPSERT_COMMAND.format(
+                table=self.table_alias,
+                columns_str=columns_str,
+                placeholders=placeholders,
+                conflict_columns_str=conflict_columns_str,
+                update_set=update_set,
+            )
 
-            # Добавляем WHERE условие если есть
             if upsert_config.where_condition:
                 upsert_query += f" WHERE {upsert_config.where_condition}"
 
@@ -484,7 +529,7 @@ class PostgreSQLLoad(BaseProcessClass):
                 logger.error(f"Failed to upsert batch {batch_idx}: {e}")
                 raise
 
-    async def _create_indexes(self):
+    async def _create_indexes(self) -> None:
         """Создание индексов"""
         if not self.config.create_indexes:
             return
@@ -494,17 +539,20 @@ class PostgreSQLLoad(BaseProcessClass):
                 try:
                     columns = index_config["columns"]
                     index_name = index_config.get(
-                        "name", f"idx_{self.config.target_table}_{'_'.join(columns)}"
+                        "name",
+                        f"idx_{self.config.target_table}_{'_'.join(columns)}",
                     )
                     unique = index_config.get("unique", False)
 
                     columns_str = ", ".join(f'"{col}"' for col in columns)
                     unique_str = "UNIQUE " if unique else ""
 
-                    create_index_query = f"""
-                    CREATE {unique_str}INDEX IF NOT EXISTS "{index_name}"
-                    ON "{self.config.target_schema}"."{self.config.target_table}" ({columns_str})
-                    """
+                    create_index_query = CREATE_INDEX_COMMAND.format(
+                        unique_str=unique_str,
+                        index_name=index_name,
+                        table=self.table_alias,
+                        columns_str=columns_str,
+                    )
 
                     await conn.execute(create_index_query)
                     logger.info(f"Created index: {index_name}")
@@ -514,11 +562,11 @@ class PostgreSQLLoad(BaseProcessClass):
 
     def _generate_load_id(self) -> str:
         """Генерация уникального ID загрузки"""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
 
         # Добавляем хеш от конфигурации для уникальности
         config_str = f"{self.config.target_table}_{timestamp}"
-        hash_suffix = hashlib.md5(config_str.encode()).hexdigest()[:8]
+        hash_suffix = hashlib.sha256(config_str.encode()).hexdigest()[:8]
 
         return f"load_{timestamp}_{hash_suffix}"
 
@@ -527,7 +575,8 @@ class PostgreSQLLoad(BaseProcessClass):
         return Info(
             name="PostgreSQLLoad",
             version="1.0.0",
-            description="Загрузка данных в PostgreSQL с поддержкой upsert, батчинга и индексов",
+            description="Загрузка данных в PostgreSQL\
+            с поддержкой upsert, батчинга и индексов",
             type_class=self.__class__,
             type_module="load",
             config_class=PostgreSQLLoadConfig,

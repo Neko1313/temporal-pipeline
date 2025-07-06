@@ -1,4 +1,5 @@
 from typing import Protocol
+
 from core.component.interfaces import ComponentConfig, Info, Result
 
 
@@ -23,5 +24,5 @@ class BaseProcessClass:
             description=None,
             type_class=self.__class__,
             type_module="core",
-            config_class=type[self.config],
+            config_class=ComponentConfig,
         )

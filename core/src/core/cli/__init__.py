@@ -6,36 +6,36 @@ Temporal Pipeline CLI - Современный интерфейс командн
 import asyncio
 import json
 import uuid
-from pathlib import Path
-from typing import Optional, Annotated
 from datetime import datetime
+from pathlib import Path
+from typing import Annotated, Optional
 
 import typer
 import yaml
+from rich import print as rprint
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
 from rich.progress import (
+    BarColumn,
     Progress,
     SpinnerColumn,
     TextColumn,
-    BarColumn,
     TimeElapsedColumn,
 )
-from rich.syntax import Syntax
-from rich.tree import Tree
 from rich.prompt import Confirm
-from rich import print as rprint
+from rich.syntax import Syntax
+from rich.table import Table
+from rich.tree import Tree
 
-from core.yaml_loader import YAMLConfigParser
 from core.component import PluginRegistry
-from core.temporal.workflow import DataPipelineWorkflow
-from core.temporal.scheduled_workflow import ScheduledPipelineWorkflow
 from core.temporal.activities import (
+    cleanup_pipeline_data_activity,
     execute_stage_activity,
     validate_pipeline_activity,
-    cleanup_pipeline_data_activity,
 )
+from core.temporal.scheduled_workflow import ScheduledPipelineWorkflow
+from core.temporal.workflow import DataPipelineWorkflow
+from core.yaml_loader import YAMLConfigParser
 
 console = Console()
 app = typer.Typer(
@@ -56,7 +56,7 @@ app.add_typer(worker_app, name="worker")
 
 
 @app.command()
-def version():
+def version() -> None:
     """📋 Показать версию приложения"""
     rprint("[bold blue]Temporal Pipeline[/bold blue] [green]v1.0.0[/green]")
     rprint("🏗️  ETL фреймворк нового поколения")
@@ -71,7 +71,7 @@ def run_pipeline(
         bool, typer.Option("--dry-run", help="Только валидация без запуска")
     ] = False,
     env_file: Annotated[
-        Optional[Path], typer.Option("--env-file", help="Путь к .env файлу")
+        Path | None, typer.Option("--env-file", help="Путь к .env файлу")
     ] = None,
     temporal_host: Annotated[
         str, typer.Option("--host", help="Адрес Temporal сервера")
@@ -80,15 +80,16 @@ def run_pipeline(
         str, typer.Option("--namespace", help="Temporal namespace")
     ] = "default",
     run_id: Annotated[
-        Optional[str], typer.Option("--run-id", help="Кастомный run ID")
+        str | None, typer.Option("--run-id", help="Кастомный run ID")
     ] = None,
     wait: Annotated[
-        bool, typer.Option("--wait/--no-wait", help="Ждать завершения пайплайна")
+        bool,
+        typer.Option("--wait/--no-wait", help="Ждать завершения пайплайна"),
     ] = True,
     verbose: Annotated[
         bool, typer.Option("--verbose", "-v", help="Подробный вывод")
     ] = False,
-):
+) -> None:
     """🎯 Запустить ETL пайплайн"""
     asyncio.run(
         _run_pipeline_async(
@@ -107,13 +108,13 @@ def run_pipeline(
 async def _run_pipeline_async(
     config_path: Path,
     dry_run: bool,
-    env_file: Optional[Path],
+    env_file: Path | None,
     temporal_host: str,
     namespace: str,
-    run_id: Optional[str],
+    run_id: str | None,
     wait: bool,
     verbose: bool,
-):
+) -> None:
     """Асинхронное выполнение пайплайна"""
 
     # Загружаем переменные окружения
@@ -129,7 +130,9 @@ async def _run_pipeline_async(
             console=console,
         ) as progress:
             # Парсинг конфигурации
-            task1 = progress.add_task("📋 Загрузка конфигурации...", total=None)
+            task1 = progress.add_task(
+                "📋 Загрузка конфигурации...", total=None
+            )
             parser = YAMLConfigParser()
             pipeline_config = parser.parse_file(config_path)
             progress.advance(task1)
@@ -158,7 +161,9 @@ async def _run_pipeline_async(
                 progress.advance(task2)
 
             if validation_errors:
-                progress.update(task2, description="❌ Найдены ошибки валидации")
+                progress.update(
+                    task2, description="❌ Найдены ошибки валидации"
+                )
                 for error in validation_errors:
                     rprint(f"[red]❌ {error}[/red]")
                 raise typer.Exit(1)
@@ -169,7 +174,9 @@ async def _run_pipeline_async(
             _display_pipeline_info(pipeline_config)
 
             if dry_run:
-                rprint("\n🔍 [bold green]Dry run завершен успешно![/bold green]")
+                rprint(
+                    "\n🔍 [bold green]Dry run завершен успешно![/bold green]"
+                )
                 _display_pipeline_stats(pipeline_config)
                 return
 
@@ -179,16 +186,24 @@ async def _run_pipeline_async(
                 return
 
             # Подключение к Temporal
-            task3 = progress.add_task("🔗 Подключение к Temporal...", total=None)
+            task3 = progress.add_task(
+                "🔗 Подключение к Temporal...", total=None
+            )
 
             try:
                 from temporalio.client import Client
 
-                client = await Client.connect(temporal_host, namespace=namespace)
-                progress.update(task3, description="✅ Подключение установлено")
+                client = await Client.connect(
+                    temporal_host, namespace=namespace
+                )
+                progress.update(
+                    task3, description="✅ Подключение установлено"
+                )
             except Exception as e:
                 progress.update(task3, description="❌ Ошибка подключения")
-                rprint(f"[red]❌ Не удалось подключиться к Temporal: {e}[/red]")
+                rprint(
+                    f"[red]❌ Не удалось подключиться к Temporal: {e}[/red]"
+                )
                 rprint(
                     f"[yellow]💡 Убедитесь что Temporal Server запущен на {temporal_host}[/yellow]"
                 )
@@ -253,12 +268,14 @@ def validate_pipeline(
     output_format: Annotated[
         str, typer.Option("--format", help="Формат вывода")
     ] = "table",
-):
+) -> None:
     """✅ Валидировать конфигурацию пайплайна"""
     asyncio.run(_validate_config_async(config_path, verbose, output_format))
 
 
-async def _validate_config_async(config_path: Path, verbose: bool, output_format: str):
+async def _validate_config_async(
+    config_path: Path, verbose: bool, output_format: str
+) -> None:
     """Валидация конфигурации"""
     try:
         parser = YAMLConfigParser()
@@ -277,12 +294,19 @@ async def _validate_config_async(config_path: Path, verbose: bool, output_format
 
             table.add_row("Название", pipeline_config.name)
             table.add_row("Версия", pipeline_config.version)
-            table.add_row("Описание", pipeline_config.description or "Не указано")
-            table.add_row("Количество стадий", str(len(pipeline_config.stages)))
             table.add_row(
-                "Макс. параллельность", str(pipeline_config.max_parallel_stages)
+                "Описание", pipeline_config.description or "Не указано"
             )
-            table.add_row("Таймаут по умолчанию", f"{pipeline_config.default_timeout}с")
+            table.add_row(
+                "Количество стадий", str(len(pipeline_config.stages))
+            )
+            table.add_row(
+                "Макс. параллельность",
+                str(pipeline_config.max_parallel_stages),
+            )
+            table.add_row(
+                "Таймаут по умолчанию", f"{pipeline_config.default_timeout}с"
+            )
 
             if pipeline_config.schedule.enabled:
                 schedule_info = (
@@ -318,7 +342,9 @@ async def _validate_config_async(config_path: Path, verbose: bool, output_format
                 all_valid = False
 
             dependencies = (
-                ", ".join(stage_config.depends_on) if stage_config.depends_on else "Нет"
+                ", ".join(stage_config.depends_on)
+                if stage_config.depends_on
+                else "Нет"
             )
 
             row = [
@@ -362,7 +388,7 @@ async def _validate_config_async(config_path: Path, verbose: bool, output_format
 @plugin_app.command("list")
 def list_plugins(
     plugin_type: Annotated[
-        Optional[str], typer.Option("--type", help="Тип плагинов")
+        str | None, typer.Option("--type", help="Тип плагинов")
     ] = None,
     output_format: Annotated[
         str, typer.Option("--format", help="Формат вывода")
@@ -370,14 +396,14 @@ def list_plugins(
     detailed: Annotated[
         bool, typer.Option("--detailed", "-d", help="Подробная информация")
     ] = False,
-):
+) -> None:
     """🔌 Показать доступные плагины"""
     asyncio.run(_list_plugins_async(plugin_type, output_format, detailed))
 
 
 async def _list_plugins_async(
-    plugin_type: Optional[str], output_format: str, detailed: bool
-):
+    plugin_type: str | None, output_format: str, detailed: bool
+) -> None:
     """Отображение списка плагинов"""
     registry = PluginRegistry()
     await registry.initialize()
@@ -387,7 +413,9 @@ async def _list_plugins_async(
     if plugin_type:
         if plugin_type not in all_plugins:
             rprint(f"[red]❌ Неизвестный тип плагина: {plugin_type}[/red]")
-            rprint(f"[yellow]Доступные типы: {', '.join(all_plugins.keys())}[/yellow]")
+            rprint(
+                f"[yellow]Доступные типы: {', '.join(all_plugins.keys())}[/yellow]"
+            )
             raise typer.Exit(1)
         all_plugins = {plugin_type: all_plugins[plugin_type]}
 
@@ -460,15 +488,17 @@ def init_pipeline(
         str, typer.Option("--template", "-t", help="Тип шаблона")
     ] = "simple",
     output: Annotated[
-        Optional[Path], typer.Option("--output", "-o", help="Путь для сохранения")
+        Path | None,
+        typer.Option("--output", "-o", help="Путь для сохранения"),
     ] = None,
     force: Annotated[
-        bool, typer.Option("--force", "-f", help="Перезаписать существующий файл")
+        bool,
+        typer.Option("--force", "-f", help="Перезаписать существующий файл"),
     ] = False,
     edit: Annotated[
         bool, typer.Option("--edit", help="Открыть в редакторе после создания")
     ] = False,
-):
+) -> None:
     """📝 Создать новый пайплайн из шаблона"""
     _create_pipeline_template(name, template, output, force, edit)
 
@@ -490,7 +520,7 @@ def start_worker(
     max_concurrent_workflows: Annotated[
         int, typer.Option("--max-workflows", help="Макс. воркфлоу")
     ] = 5,
-):
+) -> None:
     """⚙️ Запустить Temporal Worker"""
     asyncio.run(
         _start_worker_async(
@@ -506,12 +536,12 @@ def start_worker(
 # Вспомогательные функции
 
 
-def _load_env_file(env_file: Path):
+def _load_env_file(env_file: Path) -> None:
     """Загрузка переменных окружения из файла"""
     import os
 
     try:
-        with open(env_file, "r") as f:
+        with open(env_file) as f:
             for line in f:
                 if line.strip() and not line.startswith("#") and "=" in line:
                     key, value = line.strip().split("=", 1)
@@ -521,7 +551,7 @@ def _load_env_file(env_file: Path):
         rprint(f"[red]❌ Ошибка загрузки env файла: {e}[/red]")
 
 
-def _display_pipeline_info(pipeline_config):
+def _display_pipeline_info(pipeline_config) -> None:
     """Отображение информации о пайплайне"""
     panel_content = f"""
 [bold blue]Название:[/bold blue] {pipeline_config.name}
@@ -538,18 +568,26 @@ def _display_pipeline_info(pipeline_config):
             if pipeline_config.schedule.cron
             else pipeline_config.schedule.interval
         )
-        panel_content += f"[bold blue]Расписание:[/bold blue] {schedule_info}\n"
+        panel_content += (
+            f"[bold blue]Расписание:[/bold blue] {schedule_info}\n"
+        )
 
     console.print(
-        Panel(panel_content, title="🚀 Информация о пайплайне", border_style="green")
+        Panel(
+            panel_content,
+            title="🚀 Информация о пайплайне",
+            border_style="green",
+        )
     )
 
 
-def _display_pipeline_stats(pipeline_config):
+def _display_pipeline_stats(pipeline_config) -> None:
     """Статистика пайплайна"""
     from collections import Counter
 
-    stage_types = Counter(stage.stage for stage in pipeline_config.stages.values())
+    stage_types = Counter(
+        stage.stage for stage in pipeline_config.stages.values()
+    )
 
     stats_table = Table(title="📊 Статистика пайплайна")
     stats_table.add_column("Метрика", style="cyan")
@@ -558,7 +596,9 @@ def _display_pipeline_stats(pipeline_config):
     for stage_type, count in stage_types.items():
         stats_table.add_row(f"Стадий типа {stage_type}", str(count))
 
-    deps_count = sum(len(stage.depends_on) for stage in pipeline_config.stages.values())
+    deps_count = sum(
+        len(stage.depends_on) for stage in pipeline_config.stages.values()
+    )
     stats_table.add_row("Всего зависимостей", str(deps_count))
     stats_table.add_row(
         "Переменных окружения", str(len(pipeline_config.required_env_vars))
@@ -567,7 +607,7 @@ def _display_pipeline_stats(pipeline_config):
     console.print(stats_table)
 
 
-def _display_dependency_analysis(pipeline_config):
+def _display_dependency_analysis(pipeline_config) -> None:
     """Анализ зависимостей"""
     rprint("\n[bold blue]📊 Анализ зависимостей:[/bold blue]")
 
@@ -591,7 +631,7 @@ def _display_dependency_analysis(pipeline_config):
         rprint(f"[red]❌ Ошибка в зависимостях: {e}[/red]")
 
 
-def _display_execution_results(result):
+def _display_execution_results(result) -> None:
     """Отображение результатов выполнения"""
     if result.status == "success":
         rprint("\n🎉 [bold green]Пайплайн выполнен успешно![/bold green]")
@@ -600,11 +640,17 @@ def _display_execution_results(result):
         results_table.add_column("Метрика", style="cyan")
         results_table.add_column("Значение", style="magenta")
 
-        results_table.add_row("Обработано записей", str(result.total_records_processed))
-        results_table.add_row("Время выполнения", f"{result.total_execution_time:.2f}с")
+        results_table.add_row(
+            "Обработано записей", str(result.total_records_processed)
+        )
+        results_table.add_row(
+            "Время выполнения", f"{result.total_execution_time:.2f}с"
+        )
         results_table.add_row(
             "Успешных стадий",
-            str(len([s for s in result.stage_results if s.status == "success"])),
+            str(
+                len([s for s in result.stage_results if s.status == "success"])
+            ),
         )
         results_table.add_row("Run ID", result.run_id)
 
@@ -619,7 +665,9 @@ def _display_execution_results(result):
             stages_table.add_column("Время", style="blue")
 
             for stage_result in result.stage_results:
-                status_icon = "✅" if stage_result.status == "success" else "❌"
+                status_icon = (
+                    "✅" if stage_result.status == "success" else "❌"
+                )
                 stages_table.add_row(
                     stage_result.stage_name,
                     f"{status_icon} {stage_result.status}",
@@ -635,8 +683,8 @@ def _display_execution_results(result):
 
 
 def _create_pipeline_template(
-    name: str, template: str, output: Optional[Path], force: bool, edit: bool
-):
+    name: str, template: str, output: Path | None, force: bool, edit: bool
+) -> None:
     """Создание шаблона пайплайна"""
     templates = {
         "simple": {
@@ -732,7 +780,11 @@ def _create_pipeline_template(
             "name": name,
             "description": f"Комплексный multi-source ETL пайплайн: {name}",
             "version": "1.0.0",
-            "schedule": {"enabled": True, "cron": "0 2 * * *", "timezone": "UTC"},
+            "schedule": {
+                "enabled": True,
+                "cron": "0 2 * * *",
+                "timezone": "UTC",
+            },
             "default_resilience": {
                 "max_attempts": 5,
                 "initial_delay": 2.0,
@@ -817,10 +869,15 @@ def _create_pipeline_template(
     output_path = output or Path(f"{name}.yml")
 
     # Проверяем существование файла
-    if output_path.exists() and not force:
-        if not Confirm.ask(f"Файл {output_path} уже существует. Перезаписать?"):
-            rprint("[yellow]Создание отменено[/yellow]")
-            return
+    if (
+        output_path.exists()
+        and not force
+        and not Confirm.ask(
+            f"Файл {output_path} уже существует. Перезаписать?"
+        )
+    ):
+        rprint("[yellow]Создание отменено[/yellow]")
+        return
 
     try:
         with open(output_path, "w", encoding="utf-8") as f:
@@ -832,16 +889,20 @@ def _create_pipeline_template(
                 indent=2,
             )
 
-        rprint(f"✅ Создан шаблон пайплайна: [bold green]{output_path}[/bold green]")
+        rprint(
+            f"✅ Создан шаблон пайплайна: [bold green]{output_path}[/bold green]"
+        )
         rprint(f"📝 Тип: [yellow]{template}[/yellow]")
 
         # Показываем содержимое
-        with open(output_path, "r", encoding="utf-8") as f:
+        with open(output_path, encoding="utf-8") as f:
             content = f.read()
 
         syntax = Syntax(content, "yaml", theme="monokai", line_numbers=True)
         console.print(
-            Panel(syntax, title=f"Содержимое {output_path}", border_style="blue")
+            Panel(
+                syntax, title=f"Содержимое {output_path}", border_style="blue"
+            )
         )
 
         # Показываем следующие шаги
@@ -861,16 +922,18 @@ def _create_pipeline_template(
    [cyan]temporal-pipeline pipeline run {output_path} --dry-run[/cyan]
 """
 
-        console.print(Panel(next_steps, title="🚀 Начало работы", border_style="green"))
+        console.print(
+            Panel(next_steps, title="🚀 Начало работы", border_style="green")
+        )
 
         # Открываем в редакторе если нужно
         if edit:
-            import subprocess
             import os
+            import subprocess
 
             editor = os.environ.get("EDITOR", "nano")
             try:
-                subprocess.run([editor, str(output_path)])
+                subprocess.run([editor, str(output_path)], check=False)
             except Exception as e:
                 rprint(f"[yellow]Не удалось открыть редактор: {e}[/yellow]")
 
@@ -880,8 +943,12 @@ def _create_pipeline_template(
 
 
 async def _start_worker_async(
-    host: str, namespace: str, task_queue: str, max_activities: int, max_workflows: int
-):
+    host: str,
+    namespace: str,
+    task_queue: str,
+    max_activities: int,
+    max_workflows: int,
+) -> None:
     """Запуск Temporal Worker"""
     try:
         rprint(f"🔗 Подключение к Temporal: [bold blue]{host}[/bold blue]")
@@ -936,7 +1003,7 @@ async def _start_worker_async(
 [bold blue]Информация о Worker:[/bold blue]
 
 🖥️  Host: {host}
-📍 Namespace: {namespace}  
+📍 Namespace: {namespace}
 📋 Task Queue: {task_queue}
 ⚡ Макс. activities: {max_activities}
 🔄 Макс. workflows: {max_workflows}

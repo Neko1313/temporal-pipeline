@@ -3,17 +3,20 @@ HTTP Extract Plugin - Извлечение данных из REST API и HTTP и
 Поддерживает JSON, XML, CSV, pagination, authentication
 """
 
-from typing import Optional, Dict, Any, List
-import polars as pl
-import logging
 import asyncio
-import aiohttp
-import json
-import xml.etree.ElementTree as ET
 import base64
-from datetime import datetime, timedelta
+import hashlib
+import io
+import json
+import logging
+import xml.etree.ElementTree as ET
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
-from core.component import BaseProcessClass, Result, Info
+import aiohttp
+import polars as pl
+
+from core.component import BaseProcessClass, Info, Result
 from http_extract.config import HTTPExtractConfig
 
 logger = logging.getLogger(__name__)
@@ -34,7 +37,7 @@ class HTTPExtract(BaseProcessClass):
 
     config: HTTPExtractConfig
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self._session = None
         self._auth_headers = {}
@@ -61,35 +64,38 @@ class HTTPExtract(BaseProcessClass):
             # Обрабатываем данные
             if data is not None and len(data) > 0:
                 logger.info(
-                    f"Successfully extracted {len(data)} rows with {len(data.columns)} columns"
+                    "Successfully extracted %s rows with %s columns",
+                    len(data),
+                    len(data.columns),
                 )
 
                 return Result(status="success", response=data)
-            else:
-                logger.warning("No data extracted from HTTP source")
-                return Result(status="success", response=pl.DataFrame())
+            logger.warning("No data extracted from HTTP source")
+            return Result(status="success", response=pl.DataFrame())
 
         except Exception as e:
-            logger.error(f"HTTP extraction failed: {str(e)}")
+            logger.error(f"HTTP extraction failed: {e!s}")
             return Result(status="error", response=None)
         finally:
             await self._close_session()
 
-    async def _create_session(self):
+    async def _create_session(self) -> None:
         """Создание HTTP сессии"""
         timeout = aiohttp.ClientTimeout(total=self.config.timeout)
         connector = aiohttp.TCPConnector(limit=10, limit_per_host=5)
 
         self._session = aiohttp.ClientSession(
-            timeout=timeout, connector=connector, headers=self.config.headers or {}
+            timeout=timeout,
+            connector=connector,
+            headers=self.config.headers or {},
         )
 
-    async def _close_session(self):
+    async def _close_session(self) -> None:
         """Закрытие HTTP сессии"""
         if self._session:
             await self._session.close()
 
-    async def _setup_authentication(self):
+    async def _setup_authentication(self) -> None:
         """Настройка аутентификации"""
         if not self.config.auth_config:
             return
@@ -97,7 +103,9 @@ class HTTPExtract(BaseProcessClass):
         auth_config = self.config.auth_config
 
         if auth_config.auth_type == "bearer" and auth_config.bearer_token:
-            self._auth_headers["Authorization"] = f"Bearer {auth_config.bearer_token}"
+            self._auth_headers["Authorization"] = (
+                f"Bearer {auth_config.bearer_token}"
+            )
 
         elif (
             auth_config.auth_type == "basic"
@@ -110,17 +118,20 @@ class HTTPExtract(BaseProcessClass):
             self._auth_headers["Authorization"] = f"Basic {credentials}"
 
         elif auth_config.auth_type == "api_key" and auth_config.api_key:
-            self._auth_headers[auth_config.api_key_header] = auth_config.api_key
+            self._auth_headers[auth_config.api_key_header] = (
+                auth_config.api_key
+            )
 
         elif auth_config.auth_type == "oauth2":
             await self._setup_oauth2()
 
-    async def _setup_oauth2(self):
+    async def _setup_oauth2(self) -> None:
         """Настройка OAuth2 аутентификации"""
         auth_config = self.config.auth_config
 
         if not auth_config.oauth2_token_url:
-            raise ValueError("oauth2_token_url is required for OAuth2 authentication")
+            msg = "oauth2_token_url is required for OAuth2 authentication"
+            raise ValueError(msg)
 
         token_data = {
             "grant_type": "client_credentials",
@@ -142,11 +153,14 @@ class HTTPExtract(BaseProcessClass):
                 self._auth_headers["Authorization"] = f"Bearer {access_token}"
                 logger.debug("OAuth2 token obtained successfully")
             else:
-                raise ValueError("Failed to obtain OAuth2 access token")
+                msg = "Failed to obtain OAuth2 access token"
+                raise ValueError(msg)
 
     async def _extract_single_request(self) -> pl.DataFrame:
         """Извлечение данных одним запросом"""
-        response_data = await self._make_request(self.config.url, self.config.params)
+        response_data = await self._make_request(
+            self.config.url, self.config.params
+        )
         return await self._parse_response(response_data)
 
     async def _extract_paginated_data(self) -> pl.DataFrame:
@@ -167,13 +181,14 @@ class HTTPExtract(BaseProcessClass):
         if all_dataframes:
             combined_df = pl.concat(all_dataframes)
             logger.info(
-                f"Combined {len(all_dataframes)} pages into {len(combined_df)} total rows"
+                "Combined %s pages into %s total rows",
+                len(all_dataframes),
+                len(combined_df),
             )
             return combined_df
-        else:
-            return pl.DataFrame()
+        return pl.DataFrame()
 
-    async def _extract_offset_pagination(self) -> List[pl.DataFrame]:
+    async def _extract_offset_pagination(self) -> list[pl.DataFrame]:
         """Пагинация по offset"""
         dataframes = []
         pagination_config = self.config.pagination_config
@@ -188,7 +203,10 @@ class HTTPExtract(BaseProcessClass):
             params[pagination_config.offset_param] = offset
 
             logger.debug(
-                f"Fetching page {page_count + 1} (offset={offset}, limit={limit})"
+                "Fetching page %s (offset=%s, limit=%s)",
+                page_count + 1,
+                offset,
+                limit,
             )
 
             response_data = await self._make_request(self.config.url, params)
@@ -200,9 +218,10 @@ class HTTPExtract(BaseProcessClass):
 
             dataframes.append(page_df)
 
-            # Если получили меньше данных чем лимит, значит это последняя страница
             if len(page_df) < limit:
-                logger.debug("Received less data than limit, stopping pagination")
+                logger.debug(
+                    "Received less data than limit, stopping pagination"
+                )
                 break
 
             offset += limit
@@ -213,7 +232,7 @@ class HTTPExtract(BaseProcessClass):
 
         return dataframes
 
-    async def _extract_page_pagination(self) -> List[pl.DataFrame]:
+    async def _extract_page_pagination(self) -> list[pl.DataFrame]:
         """Пагинация по номеру страницы"""
         dataframes = []
         pagination_config = self.config.pagination_config
@@ -246,7 +265,7 @@ class HTTPExtract(BaseProcessClass):
 
         return dataframes
 
-    async def _extract_cursor_pagination(self) -> List[pl.DataFrame]:
+    async def _extract_cursor_pagination(self) -> list[pl.DataFrame]:
         """Пагинация по cursor"""
         dataframes = []
         pagination_config = self.config.pagination_config
@@ -286,7 +305,7 @@ class HTTPExtract(BaseProcessClass):
 
         return dataframes
 
-    async def _extract_link_header_pagination(self) -> List[pl.DataFrame]:
+    async def _extract_link_header_pagination(self) -> list[pl.DataFrame]:
         """Пагинация по Link заголовку"""
         dataframes = []
         pagination_config = self.config.pagination_config
@@ -321,14 +340,14 @@ class HTTPExtract(BaseProcessClass):
         return dataframes
 
     async def _make_request(
-        self, url: str, params: Optional[Dict[str, Any]] = None
+        self, url: str, params: dict[str, Any] | None = None
     ) -> Any:
         """Выполнение HTTP запроса"""
         response, _ = await self._make_request_with_headers(url, params)
         return response
 
     async def _make_request_with_headers(
-        self, url: str, params: Optional[Dict[str, Any]] = None
+        self, url: str, params: dict[str, Any] | None = None
     ) -> tuple:
         """Выполнение HTTP запроса с возвратом заголовков"""
 
@@ -339,7 +358,7 @@ class HTTPExtract(BaseProcessClass):
         cache_key = self._generate_cache_key(url, params)
         if self.config.cache_responses and cache_key in self._cache:
             cache_entry = self._cache[cache_key]
-            if datetime.now() < cache_entry["expires"]:
+            if datetime.now(tz=UTC) < cache_entry["expires"]:
                 logger.debug(f"Using cached response for {url}")
                 return cache_entry["data"], cache_entry["headers"]
 
@@ -354,22 +373,24 @@ class HTTPExtract(BaseProcessClass):
                     # Проверяем статус код
                     if response.status not in self.config.valid_status_codes:
                         if self.config.ignore_http_errors:
-                            logger.warning(f"HTTP {response.status} ignored: {url}")
+                            logger.warning(
+                                f"HTTP {response.status} ignored: {url}"
+                            )
                             return None, {}
-                        else:
-                            response.raise_for_status()
+                        response.raise_for_status()
 
                     # Читаем ответ
                     if self.config.response_format == "json":
                         data = await response.json()
-                    elif self.config.response_format == "xml":
-                        text = await response.text(encoding=self.config.encoding)
-                        data = text
-                    elif self.config.response_format == "csv":
-                        text = await response.text(encoding=self.config.encoding)
+                    elif self.config.response_format in {"xml", "csv"}:
+                        text = await response.text(
+                            encoding=self.config.encoding
+                        )
                         data = text
                     else:
-                        data = await response.text(encoding=self.config.encoding)
+                        data = await response.text(
+                            encoding=self.config.encoding
+                        )
 
                     response_headers = dict(response.headers)
 
@@ -378,29 +399,35 @@ class HTTPExtract(BaseProcessClass):
                         self._cache[cache_key] = {
                             "data": data,
                             "headers": response_headers,
-                            "expires": datetime.now()
+                            "expires": datetime.now(tz=UTC)
                             + timedelta(seconds=self.config.cache_ttl),
                         }
 
                     logger.debug(f"HTTP {response.status} from {url}")
                     return data, response_headers
 
-            except Exception as e:
+            except Exception as ex:
                 if attempt < self.config.retries:
                     delay = self.config.retry_delay * (
                         2**attempt
                     )  # Экспоненциальная задержка
                     logger.warning(
-                        f"Request failed (attempt {attempt + 1}), retrying in {delay}s: {e}"
+                        "Request failed (attempt %s), retrying in %s s: %s",
+                        attempt + 1,
+                        delay,
+                        ex,
                     )
                     await asyncio.sleep(delay)
                 else:
                     logger.error(
-                        f"Request failed after {self.config.retries + 1} attempts: {e}"
+                        "Request failed after %s attempts: %s",
+                        self.config.retries + 1,
+                        ex,
                     )
-                    raise
+                    raise ex
+        return None
 
-    async def _parse_response(self, response_data: Any) -> Optional[pl.DataFrame]:
+    async def _parse_response(self, response_data: Any) -> pl.DataFrame | None:
         """Парсинг ответа в DataFrame"""
         if response_data is None:
             return None
@@ -408,24 +435,27 @@ class HTTPExtract(BaseProcessClass):
         try:
             if self.config.response_format == "json":
                 return await self._parse_json_response(response_data)
-            elif self.config.response_format == "xml":
+            if self.config.response_format == "xml":
                 return await self._parse_xml_response(response_data)
-            elif self.config.response_format == "csv":
+            if self.config.response_format == "csv":
                 return await self._parse_csv_response(response_data)
-            else:
-                # Text format - преобразуем в простой DataFrame
-                return pl.DataFrame({"content": [response_data]})
+            # Text format - преобразуем в простой DataFrame
+            return pl.DataFrame({"content": [response_data]})
 
         except Exception as e:
             logger.error(f"Failed to parse response: {e}")
             return None
 
-    async def _parse_json_response(self, json_data: Dict[str, Any]) -> pl.DataFrame:
+    async def _parse_json_response(
+        self, json_data: dict[str, Any]
+    ) -> pl.DataFrame:
         """Парсинг JSON ответа"""
 
         # Извлекаем данные по указанному пути
         if self.config.json_data_path:
-            data = self._get_nested_value(json_data, self.config.json_data_path)
+            data = self._get_nested_value(
+                json_data, self.config.json_data_path
+            )
         else:
             data = json_data
 
@@ -481,16 +511,13 @@ class HTTPExtract(BaseProcessClass):
     async def _parse_csv_response(self, csv_text: str) -> pl.DataFrame:
         """Парсинг CSV ответа"""
         try:
-            import io
-
             csv_buffer = io.StringIO(csv_text)
             return pl.read_csv(csv_buffer)
         except Exception as e:
             logger.error(f"CSV parsing error: {e}")
             return pl.DataFrame()
 
-    def _get_nested_value(self, data: Dict[str, Any], path: str) -> Any:
-        """Получение значения по вложенному пути (например: data.items.0.name)"""
+    def _get_nested_value(self, data: dict[str, Any], path: str) -> Any:
         if not path:
             return data
 
@@ -516,7 +543,7 @@ class HTTPExtract(BaseProcessClass):
         # Простая реализация - можно расширить
         return df
 
-    def _parse_link_header(self, link_header: Optional[str]) -> Optional[str]:
+    def _parse_link_header(self, link_header: str | None) -> str | None:
         """Парсинг Link заголовка для получения следующей ссылки"""
         if not link_header:
             return None
@@ -531,35 +558,37 @@ class HTTPExtract(BaseProcessClass):
                     return url_part[1:-1]
         return None
 
-    async def _apply_rate_limit(self):
+    async def _apply_rate_limit(self) -> None:
         """Применение rate limiting"""
         if not self.config.rate_limit:
             return
 
         if self._last_request_time:
-            time_since_last = datetime.now() - self._last_request_time
+            time_since_last = datetime.now(tz=UTC) - self._last_request_time
             min_interval = timedelta(seconds=1.0 / self.config.rate_limit)
 
             if time_since_last < min_interval:
                 sleep_time = (min_interval - time_since_last).total_seconds()
                 await asyncio.sleep(sleep_time)
 
-        self._last_request_time = datetime.now()
+        self._last_request_time = datetime.now(tz=UTC)
 
-    def _generate_cache_key(self, url: str, params: Optional[Dict[str, Any]]) -> str:
+    def _generate_cache_key(
+        self, url: str, params: dict[str, Any] | None
+    ) -> str:
         """Генерация ключа для кэша"""
-        import hashlib
 
         params_str = json.dumps(params or {}, sort_keys=True)
         cache_string = f"{url}:{params_str}"
-        return hashlib.md5(cache_string.encode()).hexdigest()
+        return hashlib.sha256(cache_string.encode()).hexdigest()
 
     @property
     def info(self) -> Info:
         return Info(
             name="HTTPExtract",
             version="1.0.0",
-            description="Извлечение данных из REST API с поддержкой аутентификации и пагинации",
+            description="Извлечение данных из REST API\
+            с поддержкой аутентификации и пагинации",
             type_class=self.__class__,
             type_module="extract",
             config_class=HTTPExtractConfig,

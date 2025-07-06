@@ -1,16 +1,16 @@
 from temporalio import workflow
 from temporalio.exceptions import ApplicationError
 
+from core.temporal.interfaces import PipelineExecutionResult
 from core.temporal.utils import (
-    should_continue_on_failure,
-    build_execution_order,
-    init_execution_metadata,
-    execute_stage_batch,
     build_error_result,
+    build_execution_order,
     build_success_result,
+    execute_stage_batch,
+    init_execution_metadata,
+    should_continue_on_failure,
 )
 from core.yaml_loader.interfaces import PipelineConfig
-from core.temporal.interfaces import PipelineExecutionResult
 
 
 @workflow.defn
@@ -56,12 +56,15 @@ class DataPipelineWorkflow:
                     elif not should_continue_on_failure(
                         result.stage_name, pipeline_config
                     ):
-                        raise ApplicationError(
-                            f"Critical stage {result.stage_name} failed: {result.error_message}"
-                        )
+                        msg = f"Critical stage {result.stage_name} failed: {result.error_message}"
+                        raise ApplicationError(msg)
 
             return build_success_result(
-                pipeline_config, run_id, start_time, stage_results, execution_metadata
+                pipeline_config,
+                run_id,
+                start_time,
+                stage_results,
+                execution_metadata,
             )
 
         except Exception as e:

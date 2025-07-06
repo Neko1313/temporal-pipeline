@@ -1,13 +1,20 @@
 from datetime import timedelta
+from typing import Any
+
+from temporalio import workflow
 from temporalio.common import RetryPolicy
 from temporalio.exceptions import ActivityError
 
-from core.yaml_loader.interfaces import ResilienceConfig, StageConfig, PipelineConfig
-from temporalio import workflow
-
 from core.temporal.activities import execute_stage_activity
-from core.temporal.interfaces import StageExecutionResult
-from core.temporal.interfaces import PipelineExecutionResult
+from core.temporal.interfaces import (
+    PipelineExecutionResult,
+    StageExecutionResult,
+)
+from core.yaml_loader.interfaces import (
+    PipelineConfig,
+    ResilienceConfig,
+    StageConfig,
+)
 
 
 def _create_retry_policy(resilience_config: ResilienceConfig) -> RetryPolicy:
@@ -40,8 +47,9 @@ def _create_retry_policy(resilience_config: ResilienceConfig) -> RetryPolicy:
 
 
 def _prepare_input_data(
-    stage_config: StageConfig, stage_data: dict[str, any]
-) -> dict[str, any] | None:
+    stage_config: StageConfig,
+    stage_data: dict[str, Any],  # Изменено: any -> Any
+) -> dict[str, Any] | None:  # Изменено: any -> Any
     if not stage_config.depends_on:
         return None
 
@@ -51,9 +59,11 @@ def _prepare_input_data(
         if dependency in stage_data:
             input_data["dependencies"][dependency] = stage_data[dependency]
             dependency_result = stage_data[dependency]
-            if hasattr(dependency_result, "metadata") and dependency_result.metadata:
-                if "records" in dependency_result.metadata:
-                    input_data["records"] = dependency_result.metadata["records"]
+            if (
+                hasattr(dependency_result, "metadata")
+                and dependency_result.metadata
+            ) and "records" in dependency_result.metadata:
+                input_data["records"] = dependency_result.metadata["records"]
 
     return input_data if input_data["dependencies"] else None
 
@@ -73,7 +83,8 @@ def build_execution_order(stages: dict[str, StageConfig]) -> list[list[str]]:
                 ready_stages.append(stage_name)
 
         if not ready_stages:
-            raise ValueError("Circular dependency detected in stages")
+            msg = "Circular dependency detected in stages"
+            raise ValueError(msg)
 
         execution_order.append(ready_stages)
         remaining_stages -= set(ready_stages)
@@ -97,7 +108,9 @@ async def execute_stage_batch(
 ) -> list[StageExecutionResult]:
     batch_tasks = []
     for stage_name in stage_batch:
-        task = _create_stage_task(stage_name, pipeline_config, run_id, stage_data)
+        task = _create_stage_task(
+            stage_name, pipeline_config, run_id, stage_data
+        )
         batch_tasks.append((stage_name, task))
 
     results = []
@@ -110,8 +123,10 @@ async def execute_stage_batch(
             results.append(result)
 
         except ActivityError as e:
-            failed_result = _create_failed_result(stage_name, pipeline_config, e)
-            workflow.logger.error(f"Stage {stage_name} failed: {str(e)}")
+            failed_result = _create_failed_result(
+                stage_name, pipeline_config, e
+            )
+            workflow.logger.error(f"Stage {stage_name} failed: {e!s}")
             results.append(failed_result)
 
     return results
@@ -164,7 +179,9 @@ def _calculate_execution_stats(
 ) -> tuple[int, int, int]:
     """Вычисление статистики выполнения"""
     total_records = sum(r.records_processed for r in stage_results)
-    successful_stages = len([r for r in stage_results if r.status == "success"])
+    successful_stages = len(
+        [r for r in stage_results if r.status == "success"]
+    )
     failed_stages = len([r for r in stage_results if r.status == "failed"])
 
     return total_records, successful_stages, failed_stages
@@ -175,12 +192,12 @@ def build_success_result(
     run_id: str,
     start_time,
     stage_results: list[StageExecutionResult],
-    execution_metadata: dict[str, any],
+    execution_metadata: dict[str, Any],
 ) -> PipelineExecutionResult:
     """Построение результата успешного выполнения"""
     execution_time = (workflow.now() - start_time).total_seconds()
-    total_records, successful_stages, failed_stages = _calculate_execution_stats(
-        stage_results
+    total_records, successful_stages, failed_stages = (
+        _calculate_execution_stats(stage_results)
     )
 
     execution_metadata.update(
@@ -191,7 +208,9 @@ def build_success_result(
         }
     )
 
-    workflow.logger.info(f"Pipeline {pipeline_config.name} completed successfully")
+    workflow.logger.info(
+        f"Pipeline {pipeline_config.name} completed successfully"
+    )
 
     return PipelineExecutionResult(
         pipeline_name=pipeline_config.name,
@@ -209,7 +228,7 @@ def build_error_result(
     run_id: str,
     start_time,
     stage_results: list[StageExecutionResult],
-    execution_metadata: dict[str, any],
+    execution_metadata: dict[str, Any],  # Изменено: any -> Any
     error: Exception,
 ) -> PipelineExecutionResult:
     """Построение результата при ошибке выполнения"""
@@ -224,7 +243,7 @@ def build_error_result(
         }
     )
 
-    workflow.logger.error(f"Pipeline {pipeline_config.name} failed: {str(error)}")
+    workflow.logger.error(f"Pipeline {pipeline_config.name} failed: {error!s}")
 
     return PipelineExecutionResult(
         pipeline_name=pipeline_config.name,

@@ -4,16 +4,16 @@
 
 from collections import defaultdict
 from importlib.metadata import entry_points
-from typing import Dict, Optional, Type, List, Any
+from typing import Any
 
-from core.component.interfaces import Info, ComponentConfig
 from core.component.base import BaseProcessClass
+from core.component.interfaces import ComponentConfig, Info
 
 
 class PluginRegistry:
-    def __init__(self):
+    def __init__(self) -> None:
         self._plugins: dict[str, dict[str, Info]] = defaultdict(dict)
-        self._plugin_classes: dict[str, dict[str, Type[BaseProcessClass]]] = (
+        self._plugin_classes: dict[str, dict[str, type[BaseProcessClass]]] = (
             defaultdict(dict)
         )  # ДОБАВЛЕНО
         self._plugin_groups = {
@@ -22,13 +22,13 @@ class PluginRegistry:
             "load": BaseProcessClass,
         }
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         await self.discover_all_plugins()
 
     async def discover_all_plugins(self) -> dict[str, int]:
         discovered_count = {}
 
-        for group_name, expected_interface in self._plugin_groups.items():
+        for group_name, _expected_interface in self._plugin_groups.items():
             count = await self._discover_plugin_group(group_name)
             discovered_count[group_name] = count
 
@@ -43,23 +43,26 @@ class PluginRegistry:
                 object_plugin_class = plugin_class()
 
                 if group_name != object_plugin_class.info.type_module:
-                    raise Exception("Plugin info error")
+                    msg = "Plugin info error"
+                    raise Exception(msg)
 
-                self._plugins[group_name][entry_point.name] = object_plugin_class.info
+                self._plugins[group_name][entry_point.name] = (
+                    object_plugin_class.info
+                )
                 self._plugin_classes[group_name][entry_point.name] = (
                     plugin_class  # ДОБАВЛЕНО
                 )
 
                 loaded_count += 1
 
-        except Exception as e:
-            print(e)
+        except Exception:
+            pass
 
         return loaded_count
 
     def get_plugin(
         self, plugin_type: str, plugin_name: str
-    ) -> Optional[Type[BaseProcessClass]]:
+    ) -> type[BaseProcessClass] | None:
         """
         Получает класс плагина по типу и имени
 
@@ -72,7 +75,9 @@ class PluginRegistry:
         """
         return self._plugin_classes.get(plugin_type, {}).get(plugin_name)
 
-    def get_plugin_info(self, plugin_type: str, plugin_name: str) -> Optional[Info]:
+    def get_plugin_info(
+        self, plugin_type: str, plugin_name: str
+    ) -> Info | None:
         """
         Получает информацию о плагине
 
@@ -85,7 +90,9 @@ class PluginRegistry:
         """
         return self._plugins.get(plugin_type, {}).get(plugin_name)
 
-    def list_plugins(self, plugin_type: Optional[str] = None) -> Dict[str, List[str]]:
+    def list_plugins(
+        self, plugin_type: str | None = None
+    ) -> dict[str, list[str]]:
         """
         Возвращает список доступных плагинов
 
@@ -96,13 +103,18 @@ class PluginRegistry:
             Словарь с типами плагинов и их именами
         """
         if plugin_type:
-            return {plugin_type: list(self._plugins.get(plugin_type, {}).keys())}
+            return {
+                plugin_type: list(self._plugins.get(plugin_type, {}).keys())
+            }
 
-        return {ptype: list(plugins.keys()) for ptype, plugins in self._plugins.items()}
+        return {
+            ptype: list(plugins.keys())
+            for ptype, plugins in self._plugins.items()
+        }
 
     async def validate_component_config(
-        self, plugin_type: str, plugin_name: str, config_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, plugin_type: str, plugin_name: str, config_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Валидирует конфигурацию компонента
 
@@ -141,7 +153,7 @@ class PluginRegistry:
         except Exception as e:
             return {"valid": False, "errors": [str(e)], "component_info": None}
 
-    def get_all_plugins(self) -> Dict[str, Dict[str, Info]]:
+    def get_all_plugins(self) -> dict[str, dict[str, Info]]:
         """
         Возвращает всю информацию о плагинах
 
@@ -151,8 +163,11 @@ class PluginRegistry:
         return dict(self._plugins)
 
     def register_plugin(
-        self, plugin_type: str, plugin_name: str, plugin_class: Type[BaseProcessClass]
-    ):
+        self,
+        plugin_type: str,
+        plugin_name: str,
+        plugin_class: type[BaseProcessClass],
+    ) -> None:
         """
         Регистрирует плагин вручную (для тестирования)
 
@@ -162,10 +177,12 @@ class PluginRegistry:
             plugin_class: Класс плагина
         """
         if plugin_type not in self._plugin_groups:
-            raise ValueError(f"Unknown plugin type: {plugin_type}")
+            msg = f"Unknown plugin type: {plugin_type}"
+            raise ValueError(msg)
 
         if not issubclass(plugin_class, BaseProcessClass):
-            raise ValueError("Plugin class must inherit from BaseProcessClass")
+            msg = "Plugin class must inherit from BaseProcessClass"
+            raise ValueError(msg)
 
         # Создаем экземпляр для получения info
         plugin_instance = plugin_class()

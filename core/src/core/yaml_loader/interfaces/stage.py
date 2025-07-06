@@ -1,6 +1,7 @@
 from typing import Literal
 
 from pydantic import BaseModel, Field
+
 from core.component import ComponentConfig
 from core.yaml_loader.interfaces.resilience import ResilienceConfig
 

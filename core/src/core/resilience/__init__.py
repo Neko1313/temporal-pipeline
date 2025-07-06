@@ -1,9 +1,10 @@
 import asyncio
-import time
 import random
-from typing import Callable, Any, Optional
+import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Optional
 
 
 class RetryPolicy(Enum):
@@ -39,7 +40,7 @@ class CircuitBreakerConfig:
 class RetryManager:
     """Управление повторными попытками с различными стратегиями"""
 
-    def __init__(self, config: RetryConfig):
+    def __init__(self, config: RetryConfig) -> None:
         self.config = config
 
     def calculate_delay(self, attempt: int) -> float:
@@ -76,7 +77,7 @@ class RetryManager:
     async def execute_with_retry(
         self,
         operation: Callable[[], Any],
-        should_retry: Optional[Callable[[Exception], bool]] = None,
+        should_retry: Callable[[Exception], bool] | None = None,
     ) -> Any:
         """Выполняет операцию с повторными попытками"""
         last_exception = None
@@ -104,7 +105,7 @@ class RetryManager:
 class CircuitBreaker:
     """Circuit Breaker для предотвращения каскадных сбоев"""
 
-    def __init__(self, config: CircuitBreakerConfig):
+    def __init__(self, config: CircuitBreakerConfig) -> None:
         self.config = config
         self.state = CircuitBreakerState.CLOSED
         self.failure_count = 0
@@ -114,11 +115,15 @@ class CircuitBreaker:
     async def execute(self, operation: Callable[[], Any]) -> Any:
         """Выполняет операцию через Circuit Breaker"""
         if self.state == CircuitBreakerState.OPEN:
-            if time.time() - self.last_failure_time > self.config.recovery_timeout:
+            if (
+                time.time() - self.last_failure_time
+                > self.config.recovery_timeout
+            ):
                 self.state = CircuitBreakerState.HALF_OPEN
                 self.success_count = 0
             else:
-                raise CircuitBreakerOpenError("Circuit breaker is open")
+                msg = "Circuit breaker is open"
+                raise CircuitBreakerOpenError(msg)
 
         try:
             result = await operation()
@@ -128,7 +133,7 @@ class CircuitBreaker:
             await self._on_failure()
             raise e
 
-    async def _on_success(self):
+    async def _on_success(self) -> None:
         """Обработка успешного выполнения"""
         if self.state == CircuitBreakerState.HALF_OPEN:
             self.success_count += 1
@@ -138,7 +143,7 @@ class CircuitBreaker:
         else:
             self.failure_count = 0
 
-    async def _on_failure(self):
+    async def _on_failure(self) -> None:
         """Обработка неудачного выполнения"""
         self.failure_count += 1
         self.last_failure_time = time.time()

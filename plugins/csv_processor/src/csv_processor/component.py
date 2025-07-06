@@ -1,12 +1,14 @@
-from pathlib import Path
-import polars as pl
-import logging
-from urllib.parse import urlparse
+import ast
 import asyncio
-import aiohttp
-import aiofiles
+import logging
+from pathlib import Path
+from urllib.parse import urlparse
 
-from core.component import BaseProcessClass, Result, Info
+import aiofiles
+import aiohttp
+import polars as pl
+
+from core.component import BaseProcessClass, Info, Result
 from csv_processor.config import CSVExtractConfig
 
 logger = logging.getLogger(__name__)
@@ -56,12 +58,13 @@ class CSVExtract(BaseProcessClass):
                 )
 
                 return Result(status="success", response=data)
-            else:
-                logger.warning("CSV file is empty or no data matches filter conditions")
-                return Result(status="success", response=pl.DataFrame())
+            logger.warning(
+                "CSV file is empty or no data matches filter conditions"
+            )
+            return Result(status="success", response=pl.DataFrame())
 
         except Exception as e:
-            logger.error(f"CSV extraction failed: {str(e)}")
+            logger.error(f"CSV extraction failed: {e!s}")
             return Result(status="error", response=None)
 
     async def _fetch_csv_content(self) -> str | bytes:
@@ -71,23 +74,23 @@ class CSVExtract(BaseProcessClass):
 
         if parsed_url.scheme in ["http", "https"]:
             return await self._fetch_http_csv()
-        elif parsed_url.scheme == "s3":
+        if parsed_url.scheme == "s3":
             return await self._fetch_s3_csv()
-        elif parsed_url.scheme == "ftp":
+        if parsed_url.scheme == "ftp":
             return await self._fetch_ftp_csv()
-        else:
-            # Локальный файл
-            return await self._fetch_local_csv()
+        # Локальный файл
+        return await self._fetch_local_csv()
 
     async def _fetch_local_csv(self) -> str:
         """Чтение локального CSV файла"""
         file_path = Path(self.config.source_config.path)
 
         if not file_path.exists():
-            raise FileNotFoundError(f"CSV file not found: {file_path}")
+            msg = f"CSV file not found: {file_path}"
+            raise FileNotFoundError(msg)
 
         async with aiofiles.open(
-            file_path, mode="r", encoding=self.config.source_config.encoding
+            file_path, encoding=self.config.source_config.encoding
         ) as f:
             content = await f.read()
 
@@ -97,7 +100,9 @@ class CSVExtract(BaseProcessClass):
     async def _fetch_http_csv(self) -> str:
         """Скачивание CSV файла по HTTP/HTTPS"""
         headers = self.config.source_config.headers or {}
-        timeout = aiohttp.ClientTimeout(total=self.config.source_config.timeout)
+        timeout = aiohttp.ClientTimeout(
+            total=self.config.source_config.timeout
+        )
 
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.get(
@@ -108,18 +113,19 @@ class CSVExtract(BaseProcessClass):
                 content = await response.text(
                     encoding=self.config.source_config.encoding
                 )
-                logger.debug(f"Downloaded {len(content)} characters from HTTP source")
+                logger.debug(
+                    f"Downloaded {len(content)} characters from HTTP source"
+                )
                 return content
 
     async def _fetch_s3_csv(self) -> str:
         """Загрузка CSV файла из S3"""
         try:
             import boto3
-            from botocore.exceptions import NoCredentialsError, ClientError
+            from botocore.exceptions import ClientError, NoCredentialsError
         except ImportError:
-            raise ImportError(
-                "boto3 library is required for S3 support. Install it with: pip install boto3"
-            )
+            msg = "boto3 library is required for S3 support. Install it with: pip install boto3"
+            raise ImportError(msg)
 
         parsed_url = urlparse(self.config.source_config.path)
         bucket = parsed_url.netloc
@@ -136,23 +142,27 @@ class CSVExtract(BaseProcessClass):
 
         try:
             response = s3_client.get_object(Bucket=bucket, Key=key)
-            content = response["Body"].read().decode(self.config.source_config.encoding)
+            content = (
+                response["Body"]
+                .read()
+                .decode(self.config.source_config.encoding)
+            )
             logger.debug(
                 f"Downloaded {len(content)} characters from S3: s3://{bucket}/{key}"
             )
             return content
 
         except (NoCredentialsError, ClientError) as e:
-            raise Exception(f"S3 access error: {e}")
+            msg = f"S3 access error: {e}"
+            raise Exception(msg)
 
     async def _fetch_ftp_csv(self) -> str:
         """Загрузка CSV файла по FTP"""
         try:
             import aioftp
         except ImportError:
-            raise ImportError(
-                "aioftp library is required for FTP support. Install it with: pip install aioftp"
-            )
+            msg = "aioftp library is required for FTP support. Install it with: pip install aioftp"
+            raise ImportError(msg)
 
         parsed_url = urlparse(self.config.source_config.path)
         host = parsed_url.hostname
@@ -168,13 +178,14 @@ class CSVExtract(BaseProcessClass):
             # Скачиваем файл во временную директорию
             import tempfile
 
-            with tempfile.NamedTemporaryFile(mode="w+b", delete=False) as temp_file:
+            with tempfile.NamedTemporaryFile(
+                mode="w+b", delete=False
+            ) as temp_file:
                 await client.download(file_path, temp_file.name)
 
                 # Читаем содержимое
                 async with aiofiles.open(
                     temp_file.name,
-                    mode="r",
                     encoding=self.config.source_config.encoding,
                 ) as f:
                     content = await f.read()
@@ -216,15 +227,17 @@ class CSVExtract(BaseProcessClass):
         # Читаем CSV
         try:
             df = pl.read_csv(csv_buffer, **read_options)
-            logger.debug(f"Parsed CSV: {len(df)} rows, {len(df.columns)} columns")
+            logger.debug(
+                f"Parsed CSV: {len(df)} rows, {len(df.columns)} columns"
+            )
             return df
 
         except Exception as e:
             if self.config.ignore_errors:
                 logger.warning(f"CSV parsing error (ignored): {e}")
                 return pl.DataFrame()
-            else:
-                raise Exception(f"CSV parsing failed: {e}")
+            msg = f"CSV parsing failed: {e}"
+            raise Exception(msg)
 
     async def _parse_csv_streaming(self, content: str) -> pl.DataFrame:
         """Потоковый парсинг CSV для больших файлов"""
@@ -241,7 +254,9 @@ class CSVExtract(BaseProcessClass):
         current_line = 0
         while current_line < len(lines):
             # Берем батч строк
-            batch_lines = lines[current_line : current_line + self.config.batch_size]
+            batch_lines = lines[
+                current_line : current_line + self.config.batch_size
+            ]
 
             if not batch_lines or (
                 len(batch_lines) == 1 and not batch_lines[0].strip()
@@ -260,7 +275,9 @@ class CSVExtract(BaseProcessClass):
             read_options = {
                 "separator": self.config.delimiter,
                 "quote_char": self.config.quote_char,
-                "has_header": self.config.has_header if current_line == 0 else True,
+                "has_header": self.config.has_header
+                if current_line == 0
+                else True,
                 "encoding": self.config.source_config.encoding,
                 "ignore_errors": self.config.ignore_errors,
                 "null_values": self.config.null_values,
@@ -274,9 +291,8 @@ class CSVExtract(BaseProcessClass):
 
             except Exception as e:
                 if not self.config.ignore_errors:
-                    raise Exception(
-                        f"Streaming CSV parsing failed at line {current_line}: {e}"
-                    )
+                    msg = f"Streaming CSV parsing failed at line {current_line}: {e}"
+                    raise Exception(msg)
                 logger.warning(
                     f"Skipped batch at line {current_line} due to error: {e}"
                 )
@@ -289,10 +305,11 @@ class CSVExtract(BaseProcessClass):
         # Объединяем все чанки
         if chunks:
             result_df = pl.concat(chunks)
-            logger.debug(f"Streaming parse complete: {len(result_df)} total rows")
+            logger.debug(
+                f"Streaming parse complete: {len(result_df)} total rows"
+            )
             return result_df
-        else:
-            return pl.DataFrame()
+        return pl.DataFrame()
 
     def _postprocess_data(self, data: pl.DataFrame) -> pl.DataFrame:
         """Постобработка данных"""
@@ -308,17 +325,29 @@ class CSVExtract(BaseProcessClass):
                 if column in data.columns:
                     try:
                         if dtype.lower() == "int":
-                            data = data.with_columns(pl.col(column).cast(pl.Int64))
+                            data = data.with_columns(
+                                pl.col(column).cast(pl.Int64)
+                            )
                         elif dtype.lower() == "float":
-                            data = data.with_columns(pl.col(column).cast(pl.Float64))
+                            data = data.with_columns(
+                                pl.col(column).cast(pl.Float64)
+                            )
                         elif dtype.lower() == "str":
-                            data = data.with_columns(pl.col(column).cast(pl.Utf8))
+                            data = data.with_columns(
+                                pl.col(column).cast(pl.Utf8)
+                            )
                         elif dtype.lower() == "bool":
-                            data = data.with_columns(pl.col(column).cast(pl.Boolean))
+                            data = data.with_columns(
+                                pl.col(column).cast(pl.Boolean)
+                            )
                         elif dtype.lower() == "date":
-                            data = data.with_columns(pl.col(column).cast(pl.Date))
+                            data = data.with_columns(
+                                pl.col(column).cast(pl.Date)
+                            )
                         elif dtype.lower() == "datetime":
-                            data = data.with_columns(pl.col(column).cast(pl.Datetime))
+                            data = data.with_columns(
+                                pl.col(column).cast(pl.Datetime)
+                            )
                     except Exception as e:
                         logger.warning(
                             f"Failed to cast column {column} to {dtype}: {e}"
@@ -328,7 +357,9 @@ class CSVExtract(BaseProcessClass):
         if self.config.filter_condition:
             try:
                 # Безопасная оценка условия
-                data = data.filter(eval(self.config.filter_condition))
+                data = data.filter(
+                    ast.literal_eval(self.config.filter_condition)
+                )
                 logger.debug(f"Applied filter: {self.config.filter_condition}")
             except Exception as e:
                 logger.warning(
@@ -346,7 +377,8 @@ class CSVExtract(BaseProcessClass):
         return Info(
             name="CSVExtract",
             version="1.0.0",
-            description="Извлечение данных из CSV файлов с поддержкой различных источников",
+            description="Извлечение данных из CSV\
+            файлов с поддержкой различных источников",
             type_class=self.__class__,
             type_module="extract",
             config_class=CSVExtractConfig,

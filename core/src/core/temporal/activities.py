@@ -2,17 +2,16 @@
 Обновленные Temporal Activities с универсальной архитектурой BaseProcessClass
 """
 
+import asyncio
 import logging
 from time import time
-from typing import Dict, Any, Optional
-import asyncio
+from typing import Any
 
 from temporalio import activity
 
-from core.component import PluginRegistry, ComponentConfig, Result
+from core.component import ComponentConfig, PluginRegistry, Result
 from core.temporal.interfaces import StageExecutionResult
 from core.yaml_loader.interfaces import StageConfig
-import polars as pl
 
 activity_logger = logging.getLogger("temporal_activity")
 
@@ -23,8 +22,8 @@ async def execute_stage_activity(
     stage_config: StageConfig,
     run_id: str,
     pipeline_name: str,
-    input_data: Optional[Dict[str, Any]] = None,
-    resilience_config: Optional[Dict[str, Any]] = None,
+    input_data: dict[str, Any] | None = None,
+    resilience_config: dict[str, Any] | None = None,
 ) -> StageExecutionResult:
     """
     ОБНОВЛЕННАЯ УНИВЕРСАЛЬНАЯ ACTIVITY для выполнения любого BaseProcessClass компонента
@@ -57,10 +56,11 @@ async def execute_stage_activity(
         )
         if not component_class:
             available = registry.list_plugins(stage_config.stage)
-            raise ValueError(
+            msg = (
                 f"Component '{stage_config.component}' of type '{stage_config.stage}' not found. "
                 f"Available: {available.get(stage_config.stage, [])}"
             )
+            raise ValueError(msg)
 
         component = component_class()
 
@@ -113,7 +113,9 @@ async def execute_stage_activity(
 
             # Сериализуем результат для передачи следующим стадиям
             if result.response is not None:
-                metadata["result_data"] = _serialize_result_data(result.response)
+                metadata["result_data"] = _serialize_result_data(
+                    result.response
+                )
 
             activity_logger.info(
                 f"Stage {stage_name} completed successfully: {records_processed} records in {execution_time:.2f}s"
@@ -127,29 +129,28 @@ async def execute_stage_activity(
                 metadata=metadata,
                 resilience_info=resilience_info,
             )
-        else:
-            error_msg = "Component returned error status"
-            activity_logger.error(f"Stage {stage_name} failed: {error_msg}")
+        error_msg = "Component returned error status"
+        activity_logger.error(f"Stage {stage_name} failed: {error_msg}")
 
-            return StageExecutionResult(
-                stage_name=stage_name,
-                status="failed",
-                execution_time=execution_time,
-                error_message=error_msg,
-                metadata={
-                    "execution_context": {
-                        "run_id": run_id,
-                        "pipeline_name": pipeline_name,
-                        "stage_name": stage_name,
-                        "attempt": attempt_number,
-                    },
-                    "component_info": {
-                        "type": stage_config.stage,
-                        "name": stage_config.component,
-                    },
+        return StageExecutionResult(
+            stage_name=stage_name,
+            status="failed",
+            execution_time=execution_time,
+            error_message=error_msg,
+            metadata={
+                "execution_context": {
+                    "run_id": run_id,
+                    "pipeline_name": pipeline_name,
+                    "stage_name": stage_name,
+                    "attempt": attempt_number,
                 },
-                resilience_info=resilience_info,
-            )
+                "component_info": {
+                    "type": stage_config.stage,
+                    "name": stage_config.component,
+                },
+            },
+            resilience_info=resilience_info,
+        )
 
     except Exception as e:
         execution_time = time() - start_time
@@ -193,7 +194,9 @@ async def execute_stage_activity(
 
 
 @activity.defn
-async def validate_pipeline_activity(pipeline_config: Dict[str, Any]) -> Dict[str, Any]:
+async def validate_pipeline_activity(
+    pipeline_config: dict[str, Any],
+) -> dict[str, Any]:
     """
     ОБНОВЛЕННАЯ УНИВЕРСАЛЬНАЯ activity для валидации конфигурации pipeline
     """
@@ -250,10 +253,10 @@ async def validate_pipeline_activity(pipeline_config: Dict[str, Any]) -> Dict[st
         }
 
     except Exception as e:
-        activity_logger.error(f"Pipeline validation failed: {str(e)}")
+        activity_logger.error(f"Pipeline validation failed: {e!s}")
         return {
             "valid": False,
-            "errors": [f"Configuration parsing failed: {str(e)}"],
+            "errors": [f"Configuration parsing failed: {e!s}"],
             "total_stages": 0,
             "available_components": {},
         }
@@ -261,8 +264,10 @@ async def validate_pipeline_activity(pipeline_config: Dict[str, Any]) -> Dict[st
 
 @activity.defn
 async def cleanup_pipeline_data_activity(
-    run_id: str, pipeline_name: str, cleanup_config: Optional[Dict[str, Any]] = None
-) -> Dict[str, Any]:
+    run_id: str,
+    pipeline_name: str,
+    cleanup_config: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """
     СОХРАНЯЕМ КАК ЕСТЬ - activity для очистки данных после выполнения pipeline
     """
@@ -290,7 +295,7 @@ async def cleanup_pipeline_data_activity(
         return cleanup_results
 
     except Exception as e:
-        activity_logger.error(f"Cleanup failed for {run_id}: {str(e)}")
+        activity_logger.error(f"Cleanup failed for {run_id}: {e!s}")
         return {
             "run_id": run_id,
             "pipeline_name": pipeline_name,
@@ -302,30 +307,39 @@ async def cleanup_pipeline_data_activity(
 # === HELPER ФУНКЦИИ ===
 
 
-def _deserialize_input_data(data: Dict[str, Any]) -> Any:
+def _deserialize_input_data(data: dict[str, Any]) -> Any:
     """Десериализует входные данные из metadata предыдущих стадий"""
     if "polars_data" in data:
-        import polars as pl
+        try:
+            import polars as pl
 
-        return pl.read_json(data["polars_data"])
-    elif "dict_data" in data:
+            return pl.read_json(data["polars_data"])
+        except ImportError:
+            # Fallback если polars недоступен
+            pass
+
+    if "dict_data" in data:
         return data["dict_data"]
-    elif "pydantic_data" in data:
+    if "pydantic_data" in data:
         return data["pydantic_data"]
-    elif "raw_data" in data:
+    if "raw_data" in data:
         return data["raw_data"]
-    elif "records" in data:
+    if "records" in data:
         # Поддержка старого формата
-        import polars as pl
+        try:
+            import polars as pl
 
-        return pl.DataFrame(data["records"])
+            return pl.DataFrame(data["records"])
+        except ImportError:
+            return data["records"]
     else:
         return data
 
 
-def _serialize_result_data(data: Any) -> Dict[str, Any]:
+def _serialize_result_data(data: Any) -> dict[str, Any]:
     """Сериализует результат для передачи между стадиями"""
     try:
+        # Lazy import polars для избежания проблем в temporal sandbox
         import polars as pl
 
         if isinstance(data, pl.DataFrame):
@@ -339,10 +353,9 @@ def _serialize_result_data(data: Any) -> Dict[str, Any]:
 
     if isinstance(data, dict):
         return {"dict_data": data}
-    elif hasattr(data, "model_dump"):
+    if hasattr(data, "model_dump"):
         return {"pydantic_data": data.model_dump()}
-    else:
-        return {"raw_data": str(data)}
+    return {"raw_data": str(data)}
 
 
 def _count_records_from_result(result) -> int:
@@ -351,6 +364,8 @@ def _count_records_from_result(result) -> int:
         return 0
 
     try:
+        import polars as pl
+
         if isinstance(result.response, pl.DataFrame):
             return len(result.response)
     except ImportError:
@@ -359,16 +374,16 @@ def _count_records_from_result(result) -> int:
     if isinstance(result.response, dict):
         if "records_count" in result.response:
             return result.response["records_count"]
-        elif "records_loaded" in result.response:
+        if "records_loaded" in result.response:
             return result.response["records_loaded"]
-        elif "records" in result.response:
+        if "records" in result.response:
             return len(result.response["records"])
 
     return 1
 
 
 async def _execute_component_with_resilience(
-    component, stage_name: str, resilience_config: Optional[Dict[str, Any]]
+    component, stage_name: str, resilience_config: dict[str, Any] | None
 ) -> Result:
     """Выполняет компонент с учетом resilience настроек"""
     if not resilience_config:
@@ -384,9 +399,8 @@ async def _execute_component_with_resilience(
             return await asyncio.wait_for(
                 execute_with_timeout(), timeout=execution_timeout
             )
-        except asyncio.TimeoutError:
-            raise TimeoutError(
-                f"Stage {stage_name} execution exceeded timeout of {execution_timeout} seconds"
-            )
+        except TimeoutError:
+            msg = f"Stage {stage_name} execution exceeded timeout of {execution_timeout} seconds"
+            raise TimeoutError(msg)
     else:
         return await execute_with_timeout()

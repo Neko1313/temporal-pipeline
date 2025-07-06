@@ -1,10 +1,10 @@
 import re
 from typing import Literal
 
-from pydantic import model_validator, Field, BaseModel
-
+from pydantic import BaseModel, Field, model_validator
 
 PATTER_INTERVAL = r"^(\d+)([smhd])$"
+RANGE_CRON = 5
 
 
 class ScheduleConfig(BaseModel):
@@ -25,12 +25,15 @@ class ScheduleConfig(BaseModel):
     notes: str = ""
 
     @model_validator(mode="after")
-    def check_cron_or_interval(self):
+    def check_cron_or_interval(self) -> None:
         if self.cron and self.interval:
-            raise ValueError("cron and interval cannot both be set")
+            msg = "cron and interval cannot both be set"
+            raise ValueError(msg)
 
-        if self.cron and len(self.cron.split()) != 5:
-            raise ValueError("cron must have exactly 5 elements")
+        if self.cron and len(self.cron.split()) != RANGE_CRON:
+            msg = f"cron must have exactly {RANGE_CRON} elements"
+            raise ValueError(msg)
 
         if self.interval and not re.match(PATTER_INTERVAL, self.interval):
-            raise ValueError(f"don't pattern {PATTER_INTERVAL}")
+            msg = f"don't pattern {PATTER_INTERVAL}"
+            raise ValueError(msg)

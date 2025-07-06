@@ -7,7 +7,7 @@ __all__ = [
     "BaseProcessClass",
     "ComponentConfig",
     "Info",
-    "Result",
     "PluginRegistry",
     "RegistryError",
+    "Result",
 ]

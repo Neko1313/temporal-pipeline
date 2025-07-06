@@ -14,10 +14,11 @@ class YAMLConfigParser:
         """Парсит YAML файл и возвращает валидированную конфигурацию"""
 
         if not config_path.exists():
-            raise FileNotFoundError(f"Config file not found: {config_path}")
+            msg = f"Config file not found: {config_path}"
+            raise FileNotFoundError(msg)
 
         try:
-            with open(config_path, "r", encoding="utf-8") as file:
+            with open(config_path, encoding="utf-8") as file:
                 raw_config = yaml.safe_load(file)
 
             # Подставляем environment variables
@@ -31,20 +32,21 @@ class YAMLConfigParser:
 
             return pipeline_config
 
-        except yaml.YAMLError as e:
-            raise ValueError(f"Invalid YAML syntax in {config_path}: {e}")
-        except Exception as e:
-            raise ValueError(f"Error parsing config {config_path}: {e}")
+        except yaml.YAMLError as ye:
+            msg = f"Invalid YAML syntax in {config_path}: {ye}"
+            raise ValueError(msg) from ye
+        except Exception as ex:
+            msg = f"Error parsing config {config_path}: {ex}"
+            raise ValueError(msg) from ex
 
     def _substitute_env_vars(self, obj: any) -> any:
         if isinstance(obj, dict):
             return {k: self._substitute_env_vars(v) for k, v in obj.items()}
-        elif isinstance(obj, list):
+        if isinstance(obj, list):
             return [self._substitute_env_vars(item) for item in obj]
-        elif isinstance(obj, str):
+        if isinstance(obj, str):
             return self._substitute_string_env_vars(obj)
-        else:
-            return obj
+        return obj
 
     @staticmethod
     def _substitute_string_env_vars(text: str) -> str:
@@ -57,13 +59,11 @@ class YAMLConfigParser:
             if ":" in var_name:
                 var_name, default_value = var_name.split(":", 1)
                 return os.environ.get(var_name, default_value)
-            else:
-                value = os.environ.get(var_name)
-                if value is None:
-                    raise ValueError(
-                        f"Required environment variable not set: {var_name}"
-                    )
-                return value
+            value = os.environ.get(var_name)
+            if value is None:
+                msg = f"Required environment variable not set: {var_name}"
+                raise ValueError(msg)
+            return value
 
         return ENV_VAR_PATTERN.sub(replace_var, text)
 
@@ -77,11 +77,12 @@ class YAMLConfigParser:
                 missing_vars.append(var_name)
 
         if missing_vars:
-            raise ValueError(f"Missing required environment variables: {missing_vars}")
+            msg = f"Missing required environment variables: {missing_vars}"
+            raise ValueError(msg)
 
     @staticmethod
     def get_env_vars_from_config(config_path: Path) -> set[str]:
-        with open(config_path, "r", encoding="utf-8") as f:
+        with open(config_path, encoding="utf-8") as f:
             content = f.read()
 
         env_vars = set()
@@ -99,7 +100,8 @@ class YAMLConfigParser:
         match = re.match(pattern, interval)
 
         if not match:
-            raise ValueError(f"Invalid interval format: {interval}")
+            msg = f"Invalid interval format: {interval}"
+            raise ValueError(msg)
 
         value, unit = match.groups()
         value = int(value)

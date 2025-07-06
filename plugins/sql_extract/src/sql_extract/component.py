@@ -4,15 +4,15 @@ SQL Extract Plugin - Полная реализация для извлечени
 """
 
 import asyncio
-from typing import Optional
-from urllib.parse import urlparse
-import polars as pl
-import logging
 import hashlib
-from datetime import datetime
-import aiosqlite
+import logging
+from datetime import UTC, datetime
+from urllib.parse import urlparse
 
-from core.component import BaseProcessClass, Result, Info
+import aiosqlite
+import polars as pl
+
+from core.component import BaseProcessClass, Info, Result
 from sql_extract.config import SQLExtractConfig
 
 logger = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ class SQLExtract(BaseProcessClass):
 
     config: SQLExtractConfig
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self._connection_pool = None
         self._cache = {}
@@ -42,7 +42,8 @@ class SQLExtract(BaseProcessClass):
         """Основной метод обработки"""
         try:
             logger.info(
-                f"Starting SQL extraction with query: {self.config.query[:100]}..."
+                f"Starting SQL extraction with\
+                query: {self.config.query[:100]}..."
             )
 
             # Проверяем кэш
@@ -74,16 +75,17 @@ class SQLExtract(BaseProcessClass):
                     self._cache_result(data)
 
                 logger.info(
-                    f"Successfully extracted {len(data)} rows with {len(data.columns)} columns"
+                    "Successfully extracted %s rows with %s columns",
+                    len(data),
+                    len(data.columns),
                 )
 
                 return Result(status="success", response=data)
-            else:
-                logger.warning("Query returned no data")
-                return Result(status="success", response=pl.DataFrame())
+            logger.warning("Query returned no data")
+            return Result(status="success", response=pl.DataFrame())
 
         except Exception as e:
-            logger.error(f"SQL extraction failed: {str(e)}")
+            logger.error(f"SQL extraction failed: {e!s}")
             return Result(status="error", response=None)
         finally:
             await self._disconnect()
@@ -100,13 +102,14 @@ class SQLExtract(BaseProcessClass):
                 query += f" WHERE {self.config.where_clause}"
 
         # Добавляем LIMIT если указан
-        if self.config.row_limit:
-            if not any(keyword in query.upper() for keyword in ["LIMIT", "TOP"]):
-                query += f" LIMIT {self.config.row_limit}"
+        if self.config.row_limit and not any(
+            keyword in query.upper() for keyword in ["LIMIT", "TOP"]
+        ):
+            query += f" LIMIT {self.config.row_limit}"
 
         return query
 
-    async def _connect(self):
+    async def _connect(self) -> None:
         """Установка соединения с базой данных"""
         parsed_uri = urlparse(self.config.source_config.uri)
         scheme = parsed_uri.scheme.split("+")[0]
@@ -120,16 +123,17 @@ class SQLExtract(BaseProcessClass):
         elif scheme == "mssql":
             await self._connect_mssql()
         else:
-            raise ValueError(f"Unsupported database type: {scheme}")
+            msg = f"Unsupported database type: {scheme}"
+            raise ValueError(msg)
 
-    async def _connect_postgresql(self):
+    async def _connect_postgresql(self) -> None:
         """Подключение к PostgreSQL"""
         try:
-            import asyncpg
-        except ImportError:
-            raise ImportError(
-                "asyncpg library is required for PostgreSQL. Install: pip install asyncpg"
-            )
+            import asyncpg  # noqa: PLC0415
+        except ImportError as ie:
+            msg = "asyncpg library is required for\
+            PostgreSQL. Install: pip install asyncpg"
+            raise ImportError(msg) from ie
 
         try:
             self._connection_pool = await asyncpg.create_pool(
@@ -140,17 +144,18 @@ class SQLExtract(BaseProcessClass):
                 server_settings={"jit": "off"},
             )
             logger.debug("PostgreSQL connection pool created")
-        except Exception as e:
-            raise Exception(f"Failed to connect to PostgreSQL: {e}")
+        except Exception as ex:
+            msg = f"Failed to connect to PostgreSQL: {ex}"
+            raise Exception(msg) from ex
 
-    async def _connect_mysql(self):
+    async def _connect_mysql(self) -> None:
         """Подключение к MySQL"""
         try:
-            import aiomysql
-        except ImportError:
-            raise ImportError(
-                "aiomysql library is required for MySQL. Install: pip install aiomysql"
-            )
+            import aiomysql  # noqa: PLC0415
+        except ImportError as ie:
+            msg = "aiomysql library is required for MySQL.\
+            Install: pip install aiomysql"
+            raise ImportError(msg) from ie
 
         try:
             parsed = urlparse(self.config.source_config.uri)
@@ -165,10 +170,11 @@ class SQLExtract(BaseProcessClass):
                 autocommit=True,
             )
             logger.debug("MySQL connection pool created")
-        except Exception as e:
-            raise Exception(f"Failed to connect to MySQL: {e}")
+        except Exception as ex:
+            msg = f"Failed to connect to MySQL: {ex}"
+            raise Exception(msg) from ex
 
-    async def _connect_sqlite(self):
+    async def _connect_sqlite(self) -> None:
         """Подключение к SQLite"""
         try:
             parsed = urlparse(self.config.source_config.uri)
@@ -179,17 +185,18 @@ class SQLExtract(BaseProcessClass):
             # Для SQLite создаем простое подключение
             self._sqlite_path = db_path
             logger.debug(f"SQLite connection configured for: {db_path}")
-        except Exception as e:
-            raise Exception(f"Failed to configure SQLite connection: {e}")
+        except Exception as ex:
+            msg = f"Failed to configure SQLite connection: {ex}"
+            raise Exception(msg) from ex
 
-    async def _connect_mssql(self):
+    async def _connect_mssql(self) -> None:
         """Подключение к SQL Server"""
         try:
-            import aioodbc
-        except ImportError:
-            raise ImportError(
-                "aioodbc library is required for SQL Server. Install: pip install aioodbc"
-            )
+            import aioodbc  # noqa: PLC0415
+        except ImportError as ie:
+            msg = "aioodbc library is required for\
+            SQL Server. Install: pip install aioodbc"
+            raise ImportError(msg) from ie
 
         try:
             # Создаем connection string для SQL Server
@@ -199,10 +206,11 @@ class SQLExtract(BaseProcessClass):
                 maxsize=self.config.source_config.connection_pool_size,
             )
             logger.debug("SQL Server connection pool created")
-        except Exception as e:
-            raise Exception(f"Failed to connect to SQL Server: {e}")
+        except Exception as ex:
+            msg = f"Failed to connect to SQL Server: {ex}"
+            raise Exception(msg) from ex
 
-    async def _disconnect(self):
+    async def _disconnect(self) -> None:
         """Закрытие соединения"""
         if self._connection_pool:
             if hasattr(self._connection_pool, "close"):
@@ -216,12 +224,13 @@ class SQLExtract(BaseProcessClass):
 
         if scheme in ["postgresql", "postgres"]:
             return await self._execute_postgresql_query(query)
-        elif scheme == "mysql":
+        if scheme == "mysql":
             return await self._execute_mysql_query(query)
-        elif scheme == "sqlite":
+        if scheme == "sqlite":
             return await self._execute_sqlite_query(query)
-        elif scheme == "mssql":
+        if scheme == "mssql":
             return await self._execute_mssql_query(query)
+        return None
 
     async def _execute_postgresql_query(self, query: str) -> pl.DataFrame:
         """Выполнение PostgreSQL запроса"""
@@ -247,47 +256,55 @@ class SQLExtract(BaseProcessClass):
 
                 df = pl.DataFrame(data)
                 logger.debug(
-                    f"PostgreSQL query executed: {len(df)} rows, {len(df.columns)} columns"
+                    "PostgreSQL query executed: %s rows, %s columns",
+                    len(df),
+                    len(df.columns),
                 )
                 return df
 
-            except Exception as e:
-                raise Exception(f"PostgreSQL query execution failed: {e}")
+            except Exception as ex:
+                msg = f"PostgreSQL query execution failed: {ex}"
+                raise Exception(msg) from ex
 
     async def _execute_mysql_query(self, query: str) -> pl.DataFrame:
         """Выполнение MySQL запроса"""
-        async with self._connection_pool.acquire() as conn:
-            async with conn.cursor() as cursor:
-                try:
-                    # Подготавливаем параметры
-                    params = (
-                        list(self.config.query_parameters.values())
-                        if self.config.query_parameters
-                        else []
-                    )
+        async with (
+            self._connection_pool.acquire() as conn,
+            conn.cursor() as cursor,
+        ):
+            try:
+                # Подготавливаем параметры
+                params = (
+                    list(self.config.query_parameters.values())
+                    if self.config.query_parameters
+                    else []
+                )
 
-                    await cursor.execute(query, params)
-                    rows = await cursor.fetchall()
+                await cursor.execute(query, params)
+                rows = await cursor.fetchall()
 
-                    if not rows:
-                        return pl.DataFrame()
+                if not rows:
+                    return pl.DataFrame()
 
-                    # Получаем имена колонок
-                    columns = [desc[0] for desc in cursor.description]
+                # Получаем имена колонок
+                columns = [desc[0] for desc in cursor.description]
 
-                    # Конвертируем в список словарей
-                    data = []
-                    for row in rows:
-                        data.append(dict(zip(columns, row)))
+                # Конвертируем в список словарей
+                data = []
+                for row in rows:
+                    data.append(dict(zip(columns, row, strict=False)))
 
-                    df = pl.DataFrame(data)
-                    logger.debug(
-                        f"MySQL query executed: {len(df)} rows, {len(df.columns)} columns"
-                    )
-                    return df
+                df = pl.DataFrame(data)
+                logger.debug(
+                    "MySQL query executed: %s rows, %s columns",
+                    len(df),
+                    len(df.columns),
+                )
+                return df
 
-                except Exception as e:
-                    raise Exception(f"MySQL query execution failed: {e}")
+            except Exception as ex:
+                msg = f"MySQL query execution failed: {ex}"
+                raise Exception(msg) from ex
 
     async def _execute_sqlite_query(self, query: str) -> pl.DataFrame:
         """Выполнение SQLite запроса"""
@@ -308,52 +325,59 @@ class SQLExtract(BaseProcessClass):
                     if not rows:
                         return pl.DataFrame()
 
-                    # Конвертируем в список словарей
                     data = [dict(row) for row in rows]
 
                     df = pl.DataFrame(data)
                     logger.debug(
-                        f"SQLite query executed: {len(df)} rows, {len(df.columns)} columns"
+                        "SQLite query executed: %s rows, %s columns",
+                        len(df),
+                        len(df.columns),
                     )
                     return df
 
-        except Exception as e:
-            raise Exception(f"SQLite query execution failed: {e}")
+        except Exception as ex:
+            msg = f"SQLite query execution failed: {ex}"
+            raise Exception(msg) from ex
 
     async def _execute_mssql_query(self, query: str) -> pl.DataFrame:
         """Выполнение SQL Server запроса"""
-        async with self._connection_pool.acquire() as conn:
-            async with conn.cursor() as cursor:
-                try:
-                    # Подготавливаем параметры
-                    params = (
-                        list(self.config.query_parameters.values())
-                        if self.config.query_parameters
-                        else []
-                    )
+        async with (
+            self._connection_pool.acquire() as conn,
+            conn.cursor() as cursor,
+        ):
+            try:
+                # Подготавливаем параметры
+                params = (
+                    list(self.config.query_parameters.values())
+                    if self.config.query_parameters
+                    else []
+                )
 
-                    await cursor.execute(query, params)
-                    rows = await cursor.fetchall()
+                await cursor.execute(query, params)
+                rows = await cursor.fetchall()
 
-                    if not rows:
-                        return pl.DataFrame()
+                if not rows:
+                    return pl.DataFrame()
 
-                    # Получаем имена колонок
-                    columns = [desc[0] for desc in cursor.description]
+                # Получаем имена колонок
+                columns = [desc[0] for desc in cursor.description]
 
-                    # Конвертируем в список словарей
-                    data = []
-                    for row in rows:
-                        data.append(dict(zip(columns, row)))
+                # Конвертируем в список словарей
+                data = []
+                for row in rows:
+                    data.append(dict(zip(columns, row, strict=False)))
 
-                    df = pl.DataFrame(data)
-                    logger.debug(
-                        f"SQL Server query executed: {len(df)} rows, {len(df.columns)} columns"
-                    )
-                    return df
+                df = pl.DataFrame(data)
+                logger.debug(
+                    "SQL Server query executed: %s rows, %s columns",
+                    len(df),
+                    len(df.columns),
+                )
+                return df
 
-                except Exception as e:
-                    raise Exception(f"SQL Server query execution failed: {e}")
+            except Exception as ex:
+                msg = f"SQL Server query execution failed: {ex}"
+                raise Exception(msg) from ex
 
     async def _execute_streaming_query(self, query: str) -> pl.DataFrame:
         """Выполнение запроса в streaming режиме"""
@@ -374,7 +398,9 @@ class SQLExtract(BaseProcessClass):
 
             all_chunks.append(batch_df)
             logger.debug(
-                f"Processed streaming batch: {len(batch_df)} rows (offset: {batch_offset})"
+                "Processed streaming batch: %s rows (offset: %s)",
+                len(batch_df),
+                batch_offset,
             )
 
             # Если получили меньше данных чем размер батча, это последний батч
@@ -389,12 +415,15 @@ class SQLExtract(BaseProcessClass):
         # Объединяем все батчи
         if all_chunks:
             result_df = pl.concat(all_chunks)
-            logger.debug(f"Streaming query complete: {len(result_df)} total rows")
+            logger.debug(
+                f"Streaming query complete: {len(result_df)} total rows"
+            )
             return result_df
-        else:
-            return pl.DataFrame()
+        return pl.DataFrame()
 
-    def _add_pagination_to_query(self, query: str, offset: int, limit: int) -> str:
+    def _add_pagination_to_query(
+        self, query: str, offset: int, limit: int
+    ) -> str:
         """Добавление пагинации к запросу"""
         # Простая реализация - добавляем OFFSET и LIMIT
         if "LIMIT" not in query.upper():
@@ -402,77 +431,97 @@ class SQLExtract(BaseProcessClass):
         return query
 
     def _postprocess_data(self, data: pl.DataFrame) -> pl.DataFrame:
-        """Постобработка данных"""
-        # Переименование колонок
         if self.config.column_mapping:
-            for old_name, new_name in self.config.column_mapping.items():
-                if old_name in data.columns:
-                    data = data.rename({old_name: new_name})
+            data = self._rename_columns(data)
 
-        # Приведение типов данных
         if self.config.data_types:
-            for column, dtype in self.config.data_types.items():
-                if column in data.columns:
-                    try:
-                        if dtype.lower() == "int":
-                            data = data.with_columns(pl.col(column).cast(pl.Int64))
-                        elif dtype.lower() == "float":
-                            data = data.with_columns(pl.col(column).cast(pl.Float64))
-                        elif dtype.lower() == "str":
-                            data = data.with_columns(pl.col(column).cast(pl.Utf8))
-                        elif dtype.lower() == "bool":
-                            data = data.with_columns(pl.col(column).cast(pl.Boolean))
-                        elif dtype.lower() == "date":
-                            data = data.with_columns(pl.col(column).cast(pl.Date))
-                        elif dtype.lower() == "datetime":
-                            data = data.with_columns(pl.col(column).cast(pl.Datetime))
-                    except Exception as e:
-                        logger.warning(
-                            f"Failed to cast column {column} to {dtype}: {e}"
-                        )
+            data = self._cast_columns(data)
 
-        # Применяем лимит строк если он не был применен в запросе
         if self.config.row_limit and len(data) > self.config.row_limit:
             data = data.head(self.config.row_limit)
 
         return data
 
-    def _check_cache(self) -> Optional[pl.DataFrame]:
+    def _rename_columns(self, data: pl.DataFrame) -> pl.DataFrame:
+        renames = {
+            old_name: new_name
+            for old_name, new_name in self.config.column_mapping.items()
+            if old_name in data.columns
+        }
+        return data.rename(renames)
+
+    def _cast_columns(self, data: pl.DataFrame) -> pl.DataFrame:
+        for column, dtype in self.config.data_types.items():
+            if column not in data.columns:
+                continue
+
+            try:
+                data = data.with_columns(self._cast_column(column, dtype))
+            except Exception as e:
+                logger.warning(
+                    f"Failed to cast column {column} to {dtype}: {e}"
+                )
+
+        return data
+
+    def _cast_column(self, column: str, dtype: str) -> pl.Expr:
+        match dtype.lower():
+            case "int":
+                return pl.col(column).cast(pl.Int64)
+            case "float":
+                return pl.col(column).cast(pl.Float64)
+            case "str":
+                return pl.col(column).cast(pl.Utf8)
+            case "bool":
+                return pl.col(column).cast(pl.Boolean)
+            case "date":
+                return pl.col(column).cast(pl.Date)
+            case "datetime":
+                return pl.col(column).cast(pl.Datetime)
+            case _:
+                msg = f"Unsupported dtype: {dtype}"
+                raise ValueError(msg)
+
+    def _check_cache(self) -> pl.DataFrame | None:
         """Проверка кэша"""
         cache_key = self._generate_cache_key()
 
         if cache_key in self._cache:
             cache_entry = self._cache[cache_key]
-            if datetime.now() < cache_entry["expires"]:
+            if datetime.now(tz=UTC) < cache_entry["expires"]:
                 return cache_entry["data"]
-            else:
-                # Удаляем устаревшую запись
-                del self._cache[cache_key]
+            # Удаляем устаревшую запись
+            del self._cache[cache_key]
 
         return None
 
-    def _cache_result(self, data: pl.DataFrame):
+    def _cache_result(self, data: pl.DataFrame) -> None:
         """Кэширование результата"""
         cache_key = self._generate_cache_key()
-        expires = datetime.now().timestamp() + self.config.cache_ttl
+        expires = datetime.now(tz=UTC).timestamp() + self.config.cache_ttl
 
         self._cache[cache_key] = {
             "data": data,
-            "expires": datetime.fromtimestamp(expires),
+            "expires": datetime.fromtimestamp(expires, tz=UTC),
         }
 
     def _generate_cache_key(self) -> str:
         """Генерация ключа для кэша"""
         # Создаем хеш на основе запроса и параметров
-        cache_string = f"{self.config.query}:{self.config.query_parameters or {}}"
-        return hashlib.md5(cache_string.encode()).hexdigest()
+        cache_string = (
+            f"{self.config.query}:{self.config.query_parameters or {}}"
+        )
+        return hashlib.sha256(cache_string.encode()).hexdigest()
 
     @property
     def info(self) -> Info:
         return Info(
             name="SQLExtract",
             version="1.0.0",
-            description="Извлечение данных из SQL баз данных с поддержкой множества СУБД",
+            description="""
+Извлечение данных из SQL баз\
+данных с поддержкой множества СУБД
+""",
             type_class=self.__class__,
             type_module="extract",
             config_class=SQLExtractConfig,

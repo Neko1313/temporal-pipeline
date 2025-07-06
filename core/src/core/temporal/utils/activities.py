@@ -54,8 +54,4 @@ def should_retry_exception(exception: Exception) -> bool:
         if pattern in error_message:
             return False
 
-    for pattern in retryable_patterns:
-        if pattern in error_message:
-            return True
-
-    return False
+    return any(pattern in error_message for pattern in retryable_patterns)

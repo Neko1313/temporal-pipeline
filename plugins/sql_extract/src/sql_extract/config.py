@@ -1,6 +1,6 @@
 from typing import Any
 
-from pydantic import BaseModel, Field, MySQLDsn, PostgresDsn, ClickHouseDsn
+from pydantic import BaseModel, ClickHouseDsn, Field, MySQLDsn, PostgresDsn
 
 from core.component import ComponentConfig
 
@@ -26,14 +26,18 @@ class SQLSourceConfig(BaseModel):
 
     # SSL настройки
     ssl_mode: str | None = Field(default=None, description="Режим SSL")
-    ssl_cert: str | None = Field(default=None, description="Путь к SSL сертификату")
+    ssl_cert: str | None = Field(
+        default=None, description="Путь к SSL сертификату"
+    )
     ssl_key: str | None = Field(default=None, description="Путь к SSL ключу")
 
 
 class SQLExtractConfig(ComponentConfig):
     """Конфигурация SQL Extract компонента"""
 
-    query: str = Field(..., min_length=1, description="SQL запрос для выполнения")
+    query: str = Field(
+        ..., min_length=1, description="SQL запрос для выполнения"
+    )
     source_config: SQLSourceConfig = Field(
         ..., description="Конфигурация подключения к БД"
     )
@@ -42,7 +46,9 @@ class SQLExtractConfig(ComponentConfig):
     batch_size: int = Field(
         default=10000, ge=100, le=100000, description="Размер батча для чтения"
     )
-    streaming: bool = Field(default=False, description="Потоковое чтение данных")
+    streaming: bool = Field(
+        default=False, description="Потоковое чтение данных"
+    )
 
     # Параметры запроса
     query_parameters: dict[str, Any] | None = Field(
@@ -58,7 +64,9 @@ class SQLExtractConfig(ComponentConfig):
     )
 
     # Фильтрация и лимиты
-    row_limit: int | None = Field(default=None, ge=1, description="Лимит строк")
+    row_limit: int | None = Field(
+        default=None, ge=1, description="Лимит строк"
+    )
     where_clause: str | None = Field(
         default=None, description="Дополнительное WHERE условие"
     )

@@ -3,13 +3,15 @@ JSON Transform Plugin - Трансформация данных с поддер�
 Поддерживает нормализацию вложенных JSON, агрегации, джойны, фильтрацию
 """
 
-from typing import Optional, Dict, Any
-import polars as pl
+import ast
 import json
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
+from typing import Any
 
-from core.component import BaseProcessClass, Result, Info
+import polars as pl
+
+from core.component import BaseProcessClass, Info, Result
 from json_processor.config import JSONTransformConfig
 
 logger = logging.getLogger(__name__)
@@ -45,7 +47,9 @@ class JSONTransform(BaseProcessClass):
             data = input_data.clone()
             original_rows = len(data)
             logger.info(
-                f"Processing {original_rows} rows with {len(data.columns)} columns"
+                "Processing %s rows with %s columns",
+                original_rows,
+                len(data.columns),
             )
 
             # Применяем трансформации в порядке
@@ -62,13 +66,15 @@ class JSONTransform(BaseProcessClass):
 
             final_rows = len(data)
             logger.info(
-                f"Transformation complete: {original_rows} -> {final_rows} rows"
+                "Transformation complete: %s -> %s rows",
+                original_rows,
+                final_rows,
             )
 
             return Result(status="success", response=data)
 
         except Exception as e:
-            logger.error(f"JSON transformation failed: {str(e)}")
+            logger.error(f"JSON transformation failed: {e!s}")
             return Result(status="error", response=None)
 
     def _get_input_data(self) -> pl.DataFrame | None:
@@ -80,16 +86,16 @@ class JSONTransform(BaseProcessClass):
                 and "records" in self.config.input_data
             ):
                 return pl.DataFrame(self.config.input_data["records"])
-            elif isinstance(self.config.input_data, pl.DataFrame):
+            if isinstance(self.config.input_data, pl.DataFrame):
                 return self.config.input_data
-            else:
-                logger.warning("Invalid input data format")
-                return None
-        else:
-            logger.warning("No input data provided")
+            logger.warning("Invalid input data format")
             return None
+        logger.warning("No input data provided")
+        return None
 
-    async def _apply_json_normalization(self, data: pl.DataFrame) -> pl.DataFrame:
+    async def _apply_json_normalization(
+        self, data: pl.DataFrame
+    ) -> pl.DataFrame:
         """Нормализация JSON колонок"""
         if not self.config.json_normalization:
             return data
@@ -136,7 +142,6 @@ class JSONTransform(BaseProcessClass):
                         }
                     )
 
-                    # Объединяем с основными данными
                     data = data.with_row_count("__row_index")
                     json_df = json_df.with_row_count("__row_index")
 
@@ -150,13 +155,15 @@ class JSONTransform(BaseProcessClass):
                 logger.debug(f"Normalized JSON column: {json_col}")
 
             except Exception as e:
-                logger.warning(f"Failed to normalize JSON column '{json_col}': {e}")
+                logger.warning(
+                    f"Failed to normalize JSON column '{json_col}': {e}"
+                )
 
         return data
 
     def _flatten_json(
         self, obj: Any, separator: str, max_level: int, current_level: int = 0
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Рекурсивное выравнивание JSON объекта"""
         result = {}
 
@@ -165,7 +172,10 @@ class JSONTransform(BaseProcessClass):
 
         if isinstance(obj, dict):
             for key, value in obj.items():
-                if isinstance(value, (dict, list)) and current_level < max_level - 1:
+                if (
+                    isinstance(value, dict | list)
+                    and current_level < max_level - 1
+                ):
                     nested = self._flatten_json(
                         value, separator, max_level, current_level + 1
                     )
@@ -175,7 +185,10 @@ class JSONTransform(BaseProcessClass):
                     result[key] = value
         elif isinstance(obj, list):
             for i, item in enumerate(obj):
-                if isinstance(item, (dict, list)) and current_level < max_level - 1:
+                if (
+                    isinstance(item, dict | list)
+                    and current_level < max_level - 1
+                ):
                     nested = self._flatten_json(
                         item, separator, max_level, current_level + 1
                     )
@@ -188,22 +201,22 @@ class JSONTransform(BaseProcessClass):
 
         return result
 
-    async def _apply_column_operations(self, data: pl.DataFrame) -> pl.DataFrame:
+    async def _apply_column_operations(
+        self, data: pl.DataFrame
+    ) -> pl.DataFrame:
         """Применение операций над колонками"""
         if not self.config.column_operations:
             return data
 
-        for new_column, expression in self.config.column_operations.items():
+        for new_column, _expression in self.config.column_operations.items():
             try:
-                # Безопасное выполнение выражения
-                # В реальном проекте здесь должен быть более безопасный парсер
-                data = data.with_columns(
-                    pl.lit(None).alias(new_column)  # Заглушка для примера
-                )
+                data = data.with_columns(pl.lit(None).alias(new_column))
                 logger.debug(f"Added column operation: {new_column}")
 
             except Exception as e:
-                logger.warning(f"Failed to apply column operation '{new_column}': {e}")
+                logger.warning(
+                    f"Failed to apply column operation '{new_column}': {e}"
+                )
 
         return data
 
@@ -214,8 +227,7 @@ class JSONTransform(BaseProcessClass):
 
         for condition in self.config.filter_conditions:
             try:
-                # В реальном проекте нужен безопасный парсер условий
-                # data = data.filter(eval(condition))
+                data = data.filter(ast.literal_eval(condition))
                 logger.debug(f"Applied filter: {condition}")
 
             except Exception as e:
@@ -247,7 +259,10 @@ class JSONTransform(BaseProcessClass):
             )
 
             logger.debug(
-                f"Applied {config.join_type} join on {config.left_on}={config.right_on}"
+                "Applied %s join on %s=%s",
+                config.join_type,
+                config.left_on,
+                config.right_on,
             )
             return result
 
@@ -255,22 +270,22 @@ class JSONTransform(BaseProcessClass):
             logger.warning(f"Failed to apply join: {e}")
             return data
 
-    def _get_dependency_data(self) -> Optional[pl.DataFrame]:
+    def _get_dependency_data(self) -> pl.DataFrame | None:
         """Получение данных из зависимостей для join операций"""
-        if hasattr(self.config, "input_data") and self.config.input_data:
-            if (
-                isinstance(self.config.input_data, dict)
-                and "dependencies" in self.config.input_data
-            ):
-                # Берем первую доступную зависимость
-                deps = self.config.input_data["dependencies"]
-                if deps:
-                    first_dep = next(iter(deps.values()))
-                    if (
-                        hasattr(first_dep, "metadata")
-                        and "records" in first_dep.metadata
-                    ):
-                        return pl.DataFrame(first_dep.metadata["records"])
+        if (
+            hasattr(self.config, "input_data")
+            and self.config.input_data
+            and isinstance(self.config.input_data, dict)
+            and "dependencies" in self.config.input_data
+        ):
+            deps = self.config.input_data["dependencies"]
+            if deps:
+                first_dep = next(iter(deps.values()))
+                if (
+                    hasattr(first_dep, "metadata")
+                    and "records" in first_dep.metadata
+                ):
+                    return pl.DataFrame(first_dep.metadata["records"])
         return None
 
     async def _apply_aggregation(self, data: pl.DataFrame) -> pl.DataFrame:
@@ -324,7 +339,8 @@ class JSONTransform(BaseProcessClass):
             if agg_expressions:
                 result = grouped.agg(agg_expressions)
                 logger.debug(
-                    f"Applied aggregation with {len(agg_expressions)} functions"
+                    "Applied aggregation with %s functions",
+                    len(agg_expressions),
                 )
                 return result
 
@@ -374,14 +390,15 @@ class JSONTransform(BaseProcessClass):
                     ]
                     for col in numeric_cols:
                         mean_val = data[col].mean()
-                        data = data.with_columns(pl.col(col).fill_null(mean_val))
+                        data = data.with_columns(
+                            pl.col(col).fill_null(mean_val)
+                        )
 
                 logger.debug(f"Applied null fill strategy: {strategy}")
 
             except Exception as e:
                 logger.warning(f"Failed to apply null fill strategy: {e}")
 
-        # Удаление строк с NULL в указанных колонках
         if self.config.drop_null_columns:
             try:
                 for col in self.config.drop_null_columns:
@@ -389,7 +406,8 @@ class JSONTransform(BaseProcessClass):
                         data = data.filter(pl.col(col).is_not_null())
 
                 logger.debug(
-                    f"Dropped rows with nulls in: {self.config.drop_null_columns}"
+                    "Dropped rows with nulls in: %s",
+                    self.config.drop_null_columns,
                 )
 
             except Exception as e:
@@ -404,7 +422,8 @@ class JSONTransform(BaseProcessClass):
 
         try:
             result = data.sort(
-                self.config.sort_columns, descending=self.config.sort_descending
+                self.config.sort_columns,
+                descending=self.config.sort_descending,
             )
             logger.debug(f"Applied sorting by: {self.config.sort_columns}")
             return result
@@ -445,7 +464,9 @@ class JSONTransform(BaseProcessClass):
             # Добавляем метаданные обработки
             data = data.with_columns(
                 [
-                    pl.lit(datetime.now().isoformat()).alias("__processed_at"),
+                    pl.lit(datetime.now(tz=UTC).isoformat()).alias(
+                        "__processed_at"
+                    ),
                     pl.lit(
                         self.config.run_id
                         if hasattr(self.config, "run_id")
@@ -471,7 +492,8 @@ class JSONTransform(BaseProcessClass):
         return Info(
             name="JSONTransform",
             version="1.0.0",
-            description="Мощный компонент трансформации данных с поддержкой JSON операций",
+            description="Мощный компонент\
+            трансформации данных с поддержкой JSON операций",
             type_class=self.__class__,
             type_module="transform",
             config_class=JSONTransformConfig,

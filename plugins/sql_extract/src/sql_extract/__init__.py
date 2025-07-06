@@ -1,4 +1,4 @@
-from core.component import BaseProcessClass, ComponentConfig, Result, Info
+from core.component import BaseProcessClass, ComponentConfig, Info, Result
 
 
 class SQLExtract(BaseProcessClass):
