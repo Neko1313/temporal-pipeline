@@ -7,11 +7,18 @@ authors = [
     { name = "Ryibalchenko.NV", email = "Ryibalchenko.NV@dns-shop.ru" }
 ]
 requires-python = ">=3.13"
-dependencies = []
-
-[project.scripts]
-core = "core:main"
+dependencies = [
+    "polars>=1.31.0",
+    "pydantic>=2.11.7",
+    "pyyaml>=6.0.2",
+    "temporalio>=1.13.0",
+    "typer>=0.16.0",
+]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[project.scripts]
+temporal-pipeline = "core.cli:app"
+tpd = "core.cli:app"

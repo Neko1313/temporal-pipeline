@@ -1,5 +1,7 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class ComponentConfig(BaseModel):
-    pass
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True
+    )

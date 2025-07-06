@@ -13,7 +13,9 @@ from core.component.base import BaseProcessClass
 class PluginRegistry:
     def __init__(self):
         self._plugins: dict[str, dict[str, Info]] = defaultdict(dict)
-        self._plugin_classes: dict[str, dict[str, Type[BaseProcessClass]]] = defaultdict(dict)  # ДОБАВЛЕНО
+        self._plugin_classes: dict[str, dict[str, Type[BaseProcessClass]]] = (
+            defaultdict(dict)
+        )  # ДОБАВЛЕНО
         self._plugin_groups = {
             "extract": BaseProcessClass,
             "transform": BaseProcessClass,
@@ -44,7 +46,9 @@ class PluginRegistry:
                     raise Exception("Plugin info error")
 
                 self._plugins[group_name][entry_point.name] = object_plugin_class.info
-                self._plugin_classes[group_name][entry_point.name] = plugin_class  # ДОБАВЛЕНО
+                self._plugin_classes[group_name][entry_point.name] = (
+                    plugin_class  # ДОБАВЛЕНО
+                )
 
                 loaded_count += 1
 
@@ -53,7 +57,9 @@ class PluginRegistry:
 
         return loaded_count
 
-    def get_plugin(self, plugin_type: str, plugin_name: str) -> Optional[Type[BaseProcessClass]]:
+    def get_plugin(
+        self, plugin_type: str, plugin_name: str
+    ) -> Optional[Type[BaseProcessClass]]:
         """
         Получает класс плагина по типу и имени
 
@@ -92,16 +98,10 @@ class PluginRegistry:
         if plugin_type:
             return {plugin_type: list(self._plugins.get(plugin_type, {}).keys())}
 
-        return {
-            ptype: list(plugins.keys())
-            for ptype, plugins in self._plugins.items()
-        }
+        return {ptype: list(plugins.keys()) for ptype, plugins in self._plugins.items()}
 
     async def validate_component_config(
-            self,
-            plugin_type: str,
-            plugin_name: str,
-            config_data: Dict[str, Any]
+        self, plugin_type: str, plugin_name: str, config_data: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
         Валидирует конфигурацию компонента
@@ -119,7 +119,7 @@ class PluginRegistry:
             return {
                 "valid": False,
                 "errors": [f"Plugin {plugin_type}.{plugin_name} not found"],
-                "component_info": None
+                "component_info": None,
             }
 
         try:
@@ -133,15 +133,13 @@ class PluginRegistry:
             return {
                 "valid": True,
                 "errors": [],
-                "component_info": plugin_instance.info.model_dump() if hasattr(plugin_instance.info, 'model_dump') else None
+                "component_info": plugin_instance.info.model_dump()
+                if hasattr(plugin_instance.info, "model_dump")
+                else None,
             }
 
         except Exception as e:
-            return {
-                "valid": False,
-                "errors": [str(e)],
-                "component_info": None
-            }
+            return {"valid": False, "errors": [str(e)], "component_info": None}
 
     def get_all_plugins(self) -> Dict[str, Dict[str, Info]]:
         """
@@ -153,10 +151,7 @@ class PluginRegistry:
         return dict(self._plugins)
 
     def register_plugin(
-        self,
-        plugin_type: str,
-        plugin_name: str,
-        plugin_class: Type[BaseProcessClass]
+        self, plugin_type: str, plugin_name: str, plugin_class: Type[BaseProcessClass]
     ):
         """
         Регистрирует плагин вручную (для тестирования)
@@ -170,7 +165,7 @@ class PluginRegistry:
             raise ValueError(f"Unknown plugin type: {plugin_type}")
 
         if not issubclass(plugin_class, BaseProcessClass):
-            raise ValueError(f"Plugin class must inherit from BaseProcessClass")
+            raise ValueError("Plugin class must inherit from BaseProcessClass")
 
         # Создаем экземпляр для получения info
         plugin_instance = plugin_class()

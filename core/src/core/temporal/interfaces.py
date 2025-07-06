@@ -1,7 +1,10 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class StageExecutionResult(BaseModel):
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True
+    )
     stage_name: str
     status: str
     records_processed: int = 0
@@ -12,6 +15,9 @@ class StageExecutionResult(BaseModel):
 
 
 class PipelineExecutionResult(BaseModel):
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True
+    )
     pipeline_name: str
     run_id: str
     status: str

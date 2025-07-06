@@ -13,12 +13,6 @@ from core.component import PluginRegistry, ComponentConfig, Result
 from core.temporal.interfaces import StageExecutionResult
 from core.yaml_loader.interfaces import StageConfig
 import polars as pl
-from core.resilience import (
-    RetryManager,
-    RetryConfig,
-    CircuitBreaker,
-    CircuitBreakerConfig,
-)
 
 activity_logger = logging.getLogger("temporal_activity")
 
@@ -35,7 +29,9 @@ async def execute_stage_activity(
     """
     ОБНОВЛЕННАЯ УНИВЕРСАЛЬНАЯ ACTIVITY для выполнения любого BaseProcessClass компонента
     """
-    activity_logger.info(f"Executing stage: {stage_name} ({stage_config.stage}.{stage_config.component})")
+    activity_logger.info(
+        f"Executing stage: {stage_name} ({stage_config.stage}.{stage_config.component})"
+    )
     start_time = time()
 
     activity_info = activity.info()
@@ -43,7 +39,9 @@ async def execute_stage_activity(
 
     resilience_info = {
         "attempt": attempt_number,
-        "max_attempts": resilience_config.get("max_attempts", 3) if resilience_config else 3,
+        "max_attempts": resilience_config.get("max_attempts", 3)
+        if resilience_config
+        else 3,
         "component_type": stage_config.stage,
         "component_name": stage_config.component,
     }
@@ -54,7 +52,9 @@ async def execute_stage_activity(
         await registry.initialize()
 
         # ИЗМЕНЕНИЕ: Универсальное получение компонента (без group_map)
-        component_class = registry.get_plugin(stage_config.stage, stage_config.component)
+        component_class = registry.get_plugin(
+            stage_config.stage, stage_config.component
+        )
         if not component_class:
             available = registry.list_plugins(stage_config.stage)
             raise ValueError(
@@ -64,14 +64,20 @@ async def execute_stage_activity(
 
         component = component_class()
 
-        config_data = stage_config.component_config.model_dump() if stage_config.component_config else {}
+        config_data = (
+            stage_config.component_config.model_dump()
+            if stage_config.component_config
+            else {}
+        )
 
-        config_data.update({
-            "run_id": run_id,
-            "pipeline_name": pipeline_name,
-            "stage_name": stage_name,
-            "attempt": attempt_number,
-        })
+        config_data.update(
+            {
+                "run_id": run_id,
+                "pipeline_name": pipeline_name,
+                "stage_name": stage_name,
+                "attempt": attempt_number,
+            }
+        )
 
         if input_data:
             deserialized_input = _deserialize_input_data(input_data)
@@ -102,7 +108,7 @@ async def execute_stage_activity(
                 "performance": {
                     "execution_time": execution_time,
                     "records_processed": records_processed,
-                }
+                },
             }
 
             # Сериализуем результат для передачи следующим стадиям
@@ -122,7 +128,7 @@ async def execute_stage_activity(
                 resilience_info=resilience_info,
             )
         else:
-            error_msg = f"Component returned error status"
+            error_msg = "Component returned error status"
             activity_logger.error(f"Stage {stage_name} failed: {error_msg}")
 
             return StageExecutionResult(
@@ -140,7 +146,7 @@ async def execute_stage_activity(
                     "component_info": {
                         "type": stage_config.stage,
                         "name": stage_config.component,
-                    }
+                    },
                 },
                 resilience_info=resilience_info,
             )
@@ -155,12 +161,14 @@ async def execute_stage_activity(
             f"failed on attempt {attempt_number}: {error_msg}"
         )
 
-        resilience_info.update({
-            "failed_attempt": attempt_number,
-            "error_type": error_type,
-            "total_execution_time": execution_time,
-            "will_retry": attempt_number < resilience_info["max_attempts"],
-        })
+        resilience_info.update(
+            {
+                "failed_attempt": attempt_number,
+                "error_type": error_type,
+                "total_execution_time": execution_time,
+                "will_retry": attempt_number < resilience_info["max_attempts"],
+            }
+        )
 
         return StageExecutionResult(
             stage_name=stage_name,
@@ -178,7 +186,7 @@ async def execute_stage_activity(
                 "component_info": {
                     "type": stage_config.stage,
                     "name": stage_config.component,
-                }
+                },
             },
             resilience_info=resilience_info,
         )
@@ -204,7 +212,9 @@ async def validate_pipeline_activity(pipeline_config: Dict[str, Any]) -> Dict[st
         validation_errors = []
 
         for stage_name, stage_config in config.stages.items():
-            component_info = registry.get_plugin_info(stage_config.stage, stage_config.component)
+            component_info = registry.get_plugin_info(
+                stage_config.stage, stage_config.component
+            )
             if not component_info:
                 available = registry.list_plugins(stage_config.stage)
                 validation_errors.append(
@@ -215,22 +225,28 @@ async def validate_pipeline_activity(pipeline_config: Dict[str, Any]) -> Dict[st
                 continue
 
             # Валидируем конфигурацию компонента
-            config_data = stage_config.component_config.model_dump() if stage_config.component_config else {}
+            config_data = (
+                stage_config.component_config.model_dump()
+                if stage_config.component_config
+                else {}
+            )
             validation_result = await registry.validate_component_config(
                 stage_config.stage, stage_config.component, config_data
             )
 
             if not validation_result["valid"]:
-                validation_errors.extend([
-                    f"Stage '{stage_name}': {error}"
-                    for error in validation_result["errors"]
-                ])
+                validation_errors.extend(
+                    [
+                        f"Stage '{stage_name}': {error}"
+                        for error in validation_result["errors"]
+                    ]
+                )
 
         return {
             "valid": len(validation_errors) == 0,
             "errors": validation_errors,
             "total_stages": len(config.stages),
-            "available_components": registry.list_plugins()
+            "available_components": registry.list_plugins(),
         }
 
     except Exception as e:
@@ -239,15 +255,13 @@ async def validate_pipeline_activity(pipeline_config: Dict[str, Any]) -> Dict[st
             "valid": False,
             "errors": [f"Configuration parsing failed: {str(e)}"],
             "total_stages": 0,
-            "available_components": {}
+            "available_components": {},
         }
 
 
 @activity.defn
 async def cleanup_pipeline_data_activity(
-    run_id: str,
-    pipeline_name: str,
-    cleanup_config: Optional[Dict[str, Any]] = None
+    run_id: str, pipeline_name: str, cleanup_config: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """
     СОХРАНЯЕМ КАК ЕСТЬ - activity для очистки данных после выполнения pipeline
@@ -259,7 +273,7 @@ async def cleanup_pipeline_data_activity(
             "run_id": run_id,
             "pipeline_name": pipeline_name,
             "cleaned_items": [],
-            "errors": []
+            "errors": [],
         }
 
         if cleanup_config:
@@ -281,16 +295,18 @@ async def cleanup_pipeline_data_activity(
             "run_id": run_id,
             "pipeline_name": pipeline_name,
             "cleaned_items": [],
-            "errors": [str(e)]
+            "errors": [str(e)],
         }
 
 
 # === HELPER ФУНКЦИИ ===
 
+
 def _deserialize_input_data(data: Dict[str, Any]) -> Any:
     """Десериализует входные данные из metadata предыдущих стадий"""
     if "polars_data" in data:
         import polars as pl
+
         return pl.read_json(data["polars_data"])
     elif "dict_data" in data:
         return data["dict_data"]
@@ -301,6 +317,7 @@ def _deserialize_input_data(data: Dict[str, Any]) -> Any:
     elif "records" in data:
         # Поддержка старого формата
         import polars as pl
+
         return pl.DataFrame(data["records"])
     else:
         return data
@@ -310,6 +327,7 @@ def _serialize_result_data(data: Any) -> Dict[str, Any]:
     """Сериализует результат для передачи между стадиями"""
     try:
         import polars as pl
+
         if isinstance(data, pl.DataFrame):
             return {
                 "polars_data": data.write_json(),
@@ -321,7 +339,7 @@ def _serialize_result_data(data: Any) -> Dict[str, Any]:
 
     if isinstance(data, dict):
         return {"dict_data": data}
-    elif hasattr(data, 'model_dump'):
+    elif hasattr(data, "model_dump"):
         return {"pydantic_data": data.model_dump()}
     else:
         return {"raw_data": str(data)}
@@ -350,9 +368,7 @@ def _count_records_from_result(result) -> int:
 
 
 async def _execute_component_with_resilience(
-        component,
-        stage_name: str,
-        resilience_config: Optional[Dict[str, Any]]
+    component, stage_name: str, resilience_config: Optional[Dict[str, Any]]
 ) -> Result:
     """Выполняет компонент с учетом resilience настроек"""
     if not resilience_config:
@@ -365,7 +381,9 @@ async def _execute_component_with_resilience(
 
     if execution_timeout:
         try:
-            return await asyncio.wait_for(execute_with_timeout(), timeout=execution_timeout)
+            return await asyncio.wait_for(
+                execute_with_timeout(), timeout=execution_timeout
+            )
         except asyncio.TimeoutError:
             raise TimeoutError(
                 f"Stage {stage_name} execution exceeded timeout of {execution_timeout} seconds"

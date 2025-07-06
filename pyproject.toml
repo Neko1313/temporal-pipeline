@@ -6,24 +6,37 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "core",
+    "csv_processor",
+    "json_processor",
     "sql_extract",
-    "polars>=1.31.0",
-    "pydantic>=2.11.7",
-    "pyyaml>=6.0.2",
-    "temporalio>=1.13.0",
+    "postgres_load",
+    "http_extract",
 ]
 
 [tool.uv.workspace]
 members = [
     "core",
     "plugins/sql_extract",
+    "plugins/csv_processor",
+    "plugins/json_processor",
+    "plugins/http_extract",
+    "plugins/postgres_load",
 ]
 
 [tool.uv.sources]
 core = { workspace = true }
 sql_extract = { workspace = true }
+csv_processor = { workspace = true }
+json_processor = { workspace = true }
+postgres_load = { workspace = true }
+http_extract = { workspace = true }
 
 [dependency-groups]
 dev = [
     "ruff>=0.12.2",
 ]
+
+[project.scripts]
+temporal-pipeline = "core.cli:app"
+tpd = "core.cli:app"
+pipeline = "core.cli:app"

@@ -23,5 +23,5 @@ class BaseProcessClass:
             description=None,
             type_class=self.__class__,
             type_module="core",
-            config_class=self.config,
+            config_class=type[self.config],
         )
