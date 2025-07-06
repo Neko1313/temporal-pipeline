@@ -192,7 +192,7 @@ async def _run_pipeline_async(
             )
 
             try:
-                from temporalio.client import Client  # noqa: PLC0415
+                from temporalio.client import Client
 
                 client = await Client.connect(
                     temporal_host, namespace=namespace
@@ -221,7 +221,7 @@ async def _run_pipeline_async(
 
             actual_run_id = (
                 run_id
-                or f"cli_{datetime.now(tz=UTC).strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
+                or f"cli_{datetime.now(tz=UTC).strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"  # noqa: E501
             )
 
             if verbose:
@@ -256,7 +256,7 @@ async def _run_pipeline_async(
     except Exception as e:
         rprint(f"[red]❌ Ошибка: {e}[/red]")
         if verbose:
-            import traceback  # noqa: PLC0415
+            import traceback
 
             rprint(f"[dim]{traceback.format_exc()}[/dim]")
         typer.Exit(1)
@@ -545,7 +545,7 @@ def start_worker(
 
 def _load_env_file(env_file: Path) -> None:
     """Загрузка переменных окружения из файла"""
-    import os  # noqa: PLC0415
+    import os
 
     try:
         with open(env_file) as f:
@@ -597,7 +597,7 @@ def _display_pipeline_info(pipeline_config: PipelineConfig) -> None:
 
 def _display_pipeline_stats(pipeline_config: PipelineConfig) -> None:
     """Статистика пайплайна"""
-    from collections import Counter  # noqa: PLC0415
+    from collections import Counter
 
     stage_types = Counter(
         stage.stage for stage in pipeline_config.stages.values()
@@ -955,12 +955,14 @@ def _create_pipeline_template(
 
         # Открываем в редакторе если нужно
         if edit:
-            import os  # noqa: PLC0415
-            import subprocess  # noqa: PLC0415
+            import os
+            import shutil
+            import subprocess
 
             editor = os.environ.get("EDITOR", "nano")
             try:
-                subprocess.run([editor, str(output_path)], check=False)
+                if shutil.which(editor):
+                    subprocess.run([editor, str(output_path)], check=True)
             except Exception as e:
                 rprint(f"[yellow]Не удалось открыть редактор: {e}[/yellow]")
 
@@ -982,13 +984,13 @@ async def _start_worker_async(
         rprint(f"📍 Namespace: [bold yellow]{namespace}[/bold yellow]")
         rprint(f"📋 Task Queue: [bold green]{task_queue}[/bold green]")
 
-        from temporalio.client import Client  # noqa: PLC0415
+        from temporalio.client import Client
 
         client = await Client.connect(host, namespace=namespace)
 
         rprint("✅ [bold green]Подключение к Temporal успешно![/bold green]")
 
-        from core.component import PluginRegistry  # noqa: PLC0415
+        from core.component import PluginRegistry
 
         registry = PluginRegistry()
         await registry.initialize()
@@ -1003,7 +1005,7 @@ async def _start_worker_async(
             typer.Exit(1)
 
         # Создаем и настраиваем Worker
-        from temporalio.worker import Worker  # noqa: PLC0415
+        from temporalio.worker import Worker
 
         rprint("⚙️ Создание Worker...")
         rprint(f"   • Макс. activities: {max_activities}")
@@ -1048,7 +1050,7 @@ async def _start_worker_async(
         rprint("\n🛑 [yellow]Worker остановлен пользователем[/yellow]")
     except Exception as ex:
         rprint(f"\n❌ [bold red]Ошибка Worker:[/bold red] {ex}")
-        import traceback  # noqa: PLC0415
+        import traceback
 
         rprint(f"[dim]{traceback.format_exc()}[/dim]")
         typer.Exit(1)

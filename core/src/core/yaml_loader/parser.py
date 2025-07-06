@@ -52,7 +52,7 @@ class YAMLConfigParser:
     def _substitute_string_env_vars(text: str) -> str:
         """Подставляет environment variables в строке"""
 
-        def replace_var(match):
+        def replace_var(match: re.Match[str]) -> str:
             var_name = match.group(1)
 
             # Поддержка default значений: ${VAR_NAME:default_value}

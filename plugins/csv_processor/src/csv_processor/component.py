@@ -323,7 +323,7 @@ class CSVExtract(BaseProcessClass):
             return result_df
         return pl.DataFrame()
 
-    def _postprocess_data(self, data: pl.DataFrame) -> pl.DataFrame:
+    def _postprocess_data(self, data: pl.DataFrame) -> pl.DataFrame:  # noqa: PLR0912
         """Постобработка данных"""
         # Переименование колонок
         if self.config.column_mapping:

@@ -1,5 +1,5 @@
 import asyncio
-import random
+import secrets
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -60,7 +60,7 @@ class RetryManager:
 
         if self.config.jitter:
             # Добавляем случайное отклонение ±10%
-            jitter = delay * 0.1 * (2 * random.random() - 1)
+            jitter = delay * 0.1 * (2 * secrets.SystemRandom().random() - 1)
             delay += jitter
 
         return max(0, delay)

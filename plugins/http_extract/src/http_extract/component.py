@@ -9,12 +9,12 @@ import hashlib
 import io
 import json
 import logging
-import xml.etree.ElementTree as ET
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import aiohttp
 import polars as pl
+from defusedxml import ElementTree
 
 from core.component import BaseProcessClass, Info, Result
 from http_extract.config import HTTPExtractConfig
@@ -481,7 +481,7 @@ class HTTPExtract(BaseProcessClass):
     async def _parse_xml_response(self, xml_text: str) -> pl.DataFrame:
         """Парсинг XML ответа"""
         try:
-            root = ET.fromstring(xml_text)
+            root = ElementTree.fromstring(xml_text)
 
             # Определяем записи для парсинга
             if self.config.xml_record_tag:
@@ -504,8 +504,8 @@ class HTTPExtract(BaseProcessClass):
 
             return pl.DataFrame(data) if data else pl.DataFrame()
 
-        except ET.ParseError as e:
-            logger.error(f"XML parsing error: {e}")
+        except ElementTree.ParseError as ex:
+            logger.error(f"XML parsing error: {ex}")
             return pl.DataFrame()
 
     async def _parse_csv_response(self, csv_text: str) -> pl.DataFrame:

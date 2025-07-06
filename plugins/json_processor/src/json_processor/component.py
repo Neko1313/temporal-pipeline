@@ -289,65 +289,109 @@ class JSONTransform(BaseProcessClass):
         return None
 
     async def _apply_aggregation(self, data: pl.DataFrame) -> pl.DataFrame:
-        """Применение агрегации"""
+        """
+        Применение агрегации
+
+        Исправлено: разбито на меньшие методы
+        """
         if not self.config.aggregation:
             return data
 
-        try:
-            config = self.config.aggregation
+        return await self._perform_aggregation(data)
 
-            # Группируем данные
-            grouped = data.group_by(config.group_by)
+    async def _perform_aggregation(self, data: pl.DataFrame) -> pl.DataFrame:
+        """Выполнение агрегации"""
+        agg_config = self.config.aggregation
 
-            # Применяем агрегации
-            agg_expressions = []
-            for column, func in config.aggregations.items():
-                if column in data.columns:
-                    if func == "sum":
-                        agg_expressions.append(
-                            pl.col(column).sum().alias(f"{column}_{func}")
-                        )
-                    elif func == "avg":
-                        agg_expressions.append(
-                            pl.col(column).mean().alias(f"{column}_{func}")
-                        )
-                    elif func == "count":
-                        agg_expressions.append(
-                            pl.col(column).count().alias(f"{column}_{func}")
-                        )
-                    elif func == "min":
-                        agg_expressions.append(
-                            pl.col(column).min().alias(f"{column}_{func}")
-                        )
-                    elif func == "max":
-                        agg_expressions.append(
-                            pl.col(column).max().alias(f"{column}_{func}")
-                        )
-                    elif func == "std":
-                        agg_expressions.append(
-                            pl.col(column).std().alias(f"{column}_{func}")
-                        )
-                    elif func == "first":
-                        agg_expressions.append(
-                            pl.col(column).first().alias(f"{column}_{func}")
-                        )
-                    elif func == "last":
-                        agg_expressions.append(
-                            pl.col(column).last().alias(f"{column}_{func}")
-                        )
-
-            if agg_expressions:
-                result = grouped.agg(agg_expressions)
-                logger.debug(
-                    "Applied aggregation with %s functions",
-                    len(agg_expressions),
-                )
-                return result
-
-        except Exception as e:
-            logger.warning(f"Failed to apply aggregation: {e}")
+        # Группировка
+        group_by_columns = agg_config.get("group_by", [])
+        if group_by_columns:
+            data = await self._apply_groupby_aggregation(data, agg_config)
+        else:
+            data = await self._apply_simple_aggregation(data, agg_config)
 
         return data
+
+    async def _apply_groupby_aggregation(
+        self, data: pl.DataFrame, agg_config: dict[str, Any]
+    ) -> pl.DataFrame:
+        """Применение группировки с агрегацией"""
+        group_by_columns = agg_config["group_by"]
+        aggregations = agg_config.get("aggregations", {})
+
+        # Проверяем существование колонок
+        existing_group_columns = [
+            col for col in group_by_columns if col in data.columns
+        ]
+
+        if not existing_group_columns:
+            return data
+
+        # Строим выражения агрегации
+        agg_expressions = self._build_aggregation_expressions(
+            aggregations, data
+        )
+
+        if agg_expressions:
+            data = data.group_by(existing_group_columns).agg(agg_expressions)
+
+        return data
+
+    async def _apply_simple_aggregation(
+        self, data: pl.DataFrame, agg_config: dict[str, Any]
+    ) -> pl.DataFrame:
+        """Применение простой агрегации без группировки"""
+        aggregations = agg_config.get("aggregations", {})
+
+        agg_expressions = self._build_aggregation_expressions(
+            aggregations, data
+        )
+
+        if agg_expressions:
+            data = data.select(agg_expressions)
+
+        return data
+
+    def _build_aggregation_expressions(
+        self, aggregations: dict[str, Any], data: pl.DataFrame
+    ) -> list[Any]:
+        """Построение выражений агрегации"""
+        expressions = []
+
+        for column, agg_functions in aggregations.items():
+            if column not in data.columns:
+                continue
+
+            if isinstance(agg_functions, str):
+                agg_func_list = [agg_functions]
+            else:
+                agg_func_list = agg_functions
+
+            for func in agg_func_list:
+                expr = self._create_aggregation_expression(column, func)
+                if expr is not None:
+                    expressions.append(expr)
+
+        return expressions
+
+    def _create_aggregation_expression(self, column: str, func: str) -> Any:
+        """Создание выражения агрегации для конкретной функции"""
+        aggregation_functions = {
+            "sum": lambda col: pl.col(col).sum().alias(f"{col}_sum"),
+            "mean": lambda col: pl.col(col).mean().alias(f"{col}_mean"),
+            "avg": lambda col: pl.col(col).mean().alias(f"{col}_avg"),
+            "min": lambda col: pl.col(col).min().alias(f"{col}_min"),
+            "max": lambda col: pl.col(col).max().alias(f"{col}_max"),
+            "count": lambda col: pl.col(col).count().alias(f"{col}_count"),
+            "std": lambda col: pl.col(col).std().alias(f"{col}_std"),
+            "var": lambda col: pl.col(col).var().alias(f"{col}_var"),
+            "median": lambda col: pl.col(col).median().alias(f"{col}_median"),
+            "first": lambda col: pl.col(col).first().alias(f"{col}_first"),
+            "last": lambda col: pl.col(col).last().alias(f"{col}_last"),
+        }
+
+        agg_func = aggregation_functions.get(func.lower())
+        return agg_func(column) if agg_func else None
 
     async def _apply_deduplication(self, data: pl.DataFrame) -> pl.DataFrame:
         """Удаление дубликатов"""

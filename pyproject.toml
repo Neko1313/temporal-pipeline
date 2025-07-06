@@ -44,12 +44,6 @@ dev = [
     "ruff>=0.12.2",
 ]
 
-# CLI Interface
-[project.scripts]
-temporal-pipeline = "core.cli:app"
-tpd = "core.cli:app"
-pipeline = "core.cli:app"
-
 # Lintter settings
 [tool.ruff]
 line-length = 79
@@ -67,6 +61,15 @@ select = [
 
 [tool.ruff.lint.isort]
 known-first-party = ["core", "plugins", "tests"]
+
+[tool.ruff.lint.per-file-ignores]
+"core/src/core/cli/__init__.py" = [
+    "PLR0913",
+    "PLR0912",
+    "PLR0915",
+    "PLC0415",
+    "S603",
+]
 
 [tool.pydocstyle]
 convention = "google"

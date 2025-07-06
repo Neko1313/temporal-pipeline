@@ -22,7 +22,7 @@ activity_logger = logging.getLogger("temporal_activity")
 
 
 @activity.defn
-async def execute_stage_activity(
+async def execute_stage_activity(  # noqa: PLR0913
     stage_name: str,
     stage_config: StageConfig,
     run_id: str,
@@ -320,7 +320,7 @@ async def cleanup_pipeline_data_activity(
 # === HELPER ФУНКЦИИ ===
 
 
-def _deserialize_input_data(data: dict[str, Any]) -> Any:
+def _deserialize_input_data(data: dict[str, Any]) -> Any:  # noqa: PLR0911
     """Десериализует входные данные из metadata предыдущих стадий"""
     if "polars_data" in data:
         try:

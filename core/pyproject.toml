@@ -19,6 +19,8 @@ dependencies = [
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+# CLI Interface
 [project.scripts]
 temporal-pipeline = "core.cli:app"
 tpd = "core.cli:app"
+pipeline = "core.cli:app"

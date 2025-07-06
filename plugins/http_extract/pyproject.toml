@@ -12,6 +12,7 @@ dependencies = [
     "polars>=1.31.0",
     "pydantic>=2.11.7",
     "aiohttp>=3.8.0",
+    "defusedxml>=0.7.1",
 ]
 
 [project.entry-points.extract]
