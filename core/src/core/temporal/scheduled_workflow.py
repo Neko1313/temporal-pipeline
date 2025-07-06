@@ -26,8 +26,11 @@ class ScheduledPipelineWorkflow:
             f"Starting scheduled pipeline execution: {run_id}"
         )
 
-        if "execution_metadata" not in pipeline_config:
-            pipeline_config["execution_metadata"] = {}
+        if (
+            not hasattr(pipeline_config, "execution_metadata")
+            or pipeline_config.execution_metadata is None
+        ):
+            pipeline_config.execution_metadata = {}
 
         pipeline_config["execution_metadata"].update(
             {

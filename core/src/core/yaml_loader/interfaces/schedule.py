@@ -25,7 +25,7 @@ class ScheduleConfig(BaseModel):
     notes: str = ""
 
     @model_validator(mode="after")
-    def check_cron_or_interval(self) -> None:
+    def validate_schedule_config(self) -> "ScheduleConfig":
         if self.cron and self.interval:
             msg = "cron and interval cannot both be set"
             raise ValueError(msg)

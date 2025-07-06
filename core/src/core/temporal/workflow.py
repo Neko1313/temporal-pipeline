@@ -60,9 +60,8 @@ class DataPipelineWorkflow:
                         result.stage_name, pipeline_config
                     ):
                         msg = (
-                            "Critical stage %s failed: %s",
-                            result.stage_name,
-                            result.error_message,
+                            f"Critical stage {result.stage_name} "
+                            f"failed: {result.error_message}"
                         )
                         raise ApplicationError(msg)
 

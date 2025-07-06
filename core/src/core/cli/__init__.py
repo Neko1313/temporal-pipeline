@@ -27,12 +27,13 @@ from rich.syntax import Syntax
 from rich.table import Table
 from rich.tree import Tree
 
-from core.component import PluginRegistry, Result
+from core.component import PluginRegistry
 from core.temporal.activities import (
     cleanup_pipeline_data_activity,
     execute_stage_activity,
     validate_pipeline_activity,
 )
+from core.temporal.interfaces import PipelineExecutionResult
 from core.temporal.scheduled_workflow import ScheduledPipelineWorkflow
 from core.temporal.workflow import DataPipelineWorkflow
 from core.yaml_loader import YAMLConfigParser
@@ -190,7 +191,7 @@ async def _run_pipeline_async(
             task3 = progress.add_task(
                 "🔗 Подключение к Temporal...", total=None
             )
-
+            client = None
             try:
                 from temporalio.client import Client
 
@@ -647,8 +648,9 @@ def _display_dependency_analysis(pipeline_config: PipelineConfig) -> None:
         rprint(f"[red]❌ Ошибка в зависимостях: {e}[/red]")
 
 
-def _display_execution_results(result: Result) -> None:
+def _display_execution_results(result: PipelineExecutionResult) -> None:
     """Отображение результатов выполнения"""
+
     if result.status == "success":
         rprint("\n🎉 [bold green]Пайплайн выполнен успешно![/bold green]")
 

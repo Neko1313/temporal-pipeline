@@ -2,12 +2,11 @@
 Утилиты для безопасной работы в Temporal sandbox
 """
 
+from types import ModuleType
 from typing import Any
 
-import polars as pl
 
-
-def safe_polars_import() -> pl | None:
+def safe_polars_import() -> ModuleType | None:
     """Безопасный импорт polars в temporal context"""
     try:
         import polars as pl  # noqa: PLC0415
