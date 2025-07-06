@@ -4,11 +4,13 @@
 
 from typing import Any
 
+import polars as pl
 
-def safe_polars_import():
+
+def safe_polars_import() -> pl | None:
     """Безопасный импорт polars в temporal context"""
     try:
-        import polars as pl
+        import polars as pl  # noqa: PLC0415
 
         return pl
     except Exception:

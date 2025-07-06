@@ -9,7 +9,12 @@ from typing import Any
 
 from temporalio import activity
 
-from core.component import ComponentConfig, PluginRegistry, Result
+from core.component import (
+    BaseProcessClass,
+    ComponentConfig,
+    PluginRegistry,
+    Result,
+)
 from core.temporal.interfaces import StageExecutionResult
 from core.yaml_loader.interfaces import StageConfig
 
@@ -25,9 +30,6 @@ async def execute_stage_activity(
     input_data: dict[str, Any] | None = None,
     resilience_config: dict[str, Any] | None = None,
 ) -> StageExecutionResult:
-    """
-    ОБНОВЛЕННАЯ УНИВЕРСАЛЬНАЯ ACTIVITY для выполнения любого BaseProcessClass компонента
-    """
     activity_logger.info(
         f"Executing stage: {stage_name} ({stage_config.stage}.{stage_config.component})"
     )
@@ -158,7 +160,8 @@ async def execute_stage_activity(
         error_type = type(e).__name__
 
         activity_logger.error(
-            f"Stage {stage_name} ({stage_config.stage}.{stage_config.component}) "
+            f"Stage {stage_name} "
+            f"({stage_config.stage}.{stage_config.component}) "
             f"failed on attempt {attempt_number}: {error_msg}"
         )
 
@@ -203,7 +206,7 @@ async def validate_pipeline_activity(
     activity_logger.info("Validating pipeline configuration")
 
     try:
-        from core.yaml_loader.interfaces import PipelineConfig
+        from core.yaml_loader.interfaces import PipelineConfig  # noqa: PLC0415
 
         # Валидируем структуру конфигурации
         config = PipelineConfig(**pipeline_config)
@@ -289,7 +292,9 @@ async def cleanup_pipeline_data_activity(
                 cleanup_results["cleaned_items"].append("cache")
 
         activity_logger.info(
-            f"Cleanup completed for {run_id}: {len(cleanup_results['cleaned_items'])} items cleaned"
+            "Cleanup completed for %s: %s items cleaned",
+            run_id,
+            len(cleanup_results["cleaned_items"]),
         )
 
         return cleanup_results
@@ -311,7 +316,7 @@ def _deserialize_input_data(data: dict[str, Any]) -> Any:
     """Десериализует входные данные из metadata предыдущих стадий"""
     if "polars_data" in data:
         try:
-            import polars as pl
+            import polars as pl  # noqa: PLC0415
 
             return pl.read_json(data["polars_data"])
         except ImportError:
@@ -327,7 +332,7 @@ def _deserialize_input_data(data: dict[str, Any]) -> Any:
     if "records" in data:
         # Поддержка старого формата
         try:
-            import polars as pl
+            import polars as pl  # noqa: PLC0415
 
             return pl.DataFrame(data["records"])
         except ImportError:
@@ -340,7 +345,7 @@ def _serialize_result_data(data: Any) -> dict[str, Any]:
     """Сериализует результат для передачи между стадиями"""
     try:
         # Lazy import polars для избежания проблем в temporal sandbox
-        import polars as pl
+        import polars as pl  # noqa: PLC0415
 
         if isinstance(data, pl.DataFrame):
             return {
@@ -358,13 +363,13 @@ def _serialize_result_data(data: Any) -> dict[str, Any]:
     return {"raw_data": str(data)}
 
 
-def _count_records_from_result(result) -> int:
+def _count_records_from_result(result: Result) -> int:
     """Подсчитывает количество обработанных записей из результата"""
     if result.response is None:
         return 0
 
     try:
-        import polars as pl
+        import polars as pl  # noqa: PLC0415
 
         if isinstance(result.response, pl.DataFrame):
             return len(result.response)
@@ -383,7 +388,9 @@ def _count_records_from_result(result) -> int:
 
 
 async def _execute_component_with_resilience(
-    component, stage_name: str, resilience_config: dict[str, Any] | None
+    component: BaseProcessClass,
+    stage_name: str,
+    resilience_config: dict[str, Any] | None,
 ) -> Result:
     """Выполняет компонент с учетом resilience настроек"""
     if not resilience_config:
@@ -391,7 +398,7 @@ async def _execute_component_with_resilience(
 
     execution_timeout = resilience_config.get("execution_timeout")
 
-    async def execute_with_timeout():
+    async def execute_with_timeout() -> Result:
         return await component.process()
 
     if execution_timeout:
@@ -399,8 +406,9 @@ async def _execute_component_with_resilience(
             return await asyncio.wait_for(
                 execute_with_timeout(), timeout=execution_timeout
             )
-        except TimeoutError:
-            msg = f"Stage {stage_name} execution exceeded timeout of {execution_timeout} seconds"
-            raise TimeoutError(msg)
+        except TimeoutError as te:
+            msg = f"Stage {stage_name} execution\
+            exceeded timeout of {execution_timeout} seconds"
+            raise TimeoutError(msg) from te
     else:
         return await execute_with_timeout()

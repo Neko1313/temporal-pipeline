@@ -1,13 +1,12 @@
-"""
-Обновленный PluginRegistry с дополнительными методами для универсальной архитектуры
-"""
-
 from collections import defaultdict
 from importlib.metadata import entry_points
+from logging import getLogger
 from typing import Any
 
 from core.component.base import BaseProcessClass
 from core.component.interfaces import ComponentConfig, Info
+
+logger = getLogger(__name__)
 
 
 class PluginRegistry:
@@ -55,8 +54,8 @@ class PluginRegistry:
 
                 loaded_count += 1
 
-        except Exception:
-            pass
+        except Exception as ex:
+            logger.debug(ex)
 
         return loaded_count
 

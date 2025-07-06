@@ -27,14 +27,16 @@ class PipelineConfig(BaseModel):
 
     @field_validator("stages")
     @classmethod
-    def validate_stage_dependencies(cls, v):
+    def validate_stage_dependencies(
+        cls, v: dict[str, StageConfig]
+    ) -> dict[str, StageConfig]:
         """Проверяет зависимости между стадиями"""
         stage_names = set(v.keys())
 
-        for stage_name, stage_config in v.items():
+        for _stage_name, stage_config in v.items():
             missing_deps = set(stage_config.depends_on) - stage_names
             if missing_deps:
-                msg = f"Stage '{stage_name}' has missing dependencies: {missing_deps}"
+                msg = "Stage '%s' has missing dependencies: %s"
                 raise ValueError(msg)
 
         if has_circular_dependencies(v):

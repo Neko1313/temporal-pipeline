@@ -1021,12 +1021,12 @@ async def _start_worker_async(
 
     except KeyboardInterrupt:
         rprint("\n🛑 [yellow]Worker остановлен пользователем[/yellow]")
-    except Exception as e:
+    except Exception:
         rprint(f"\n❌ [bold red]Ошибка Worker:[/bold red] {e}")
-        import traceback
+        import traceback  # noqa: PLC0415
 
         rprint(f"[dim]{traceback.format_exc()}[/dim]")
-        raise typer.Exit(1)
+        typer.Exit(1)
 
 
 if __name__ == "__main__":

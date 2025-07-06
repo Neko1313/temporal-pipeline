@@ -41,7 +41,10 @@ class DataPipelineWorkflow:
 
             for batch_index, stage_batch in enumerate(execution_order):
                 workflow.logger.info(
-                    f"Executing batch {batch_index + 1}/{len(execution_order)}: {stage_batch}"
+                    "Executing batch %s/%s: %s",
+                    batch_index + 1,
+                    len(execution_order),
+                    stage_batch,
                 )
 
                 batch_results = await execute_stage_batch(
@@ -56,7 +59,11 @@ class DataPipelineWorkflow:
                     elif not should_continue_on_failure(
                         result.stage_name, pipeline_config
                     ):
-                        msg = f"Critical stage {result.stage_name} failed: {result.error_message}"
+                        msg = (
+                            "Critical stage %s failed: %s",
+                            result.stage_name,
+                            result.error_message,
+                        )
                         raise ApplicationError(msg)
 
             return build_success_result(

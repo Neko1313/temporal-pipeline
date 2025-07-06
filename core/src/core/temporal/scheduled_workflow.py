@@ -20,7 +20,7 @@ class ScheduledPipelineWorkflow:
         timestamp = datetime.fromisoformat(
             scheduled_time.replace("Z", "+00:00")
         )
-        run_id = f"scheduled_{schedule_id}_{timestamp.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
+        run_id = f"scheduled_{schedule_id}_{timestamp.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"  # noqa: E501
 
         workflow.logger.info(
             f"Starting scheduled pipeline execution: {run_id}"

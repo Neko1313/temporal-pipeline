@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 from temporalio import workflow
@@ -118,7 +118,9 @@ async def execute_stage_batch(
         try:
             result = await task
             workflow.logger.info(
-                f"Stage {stage_name} completed: {result.records_processed} records"
+                "Stage %s completed: %s records",
+                stage_name,
+                result.records_processed,
             )
             results.append(result)
 
@@ -137,7 +139,7 @@ def _create_stage_task(
     pipeline_config: PipelineConfig,
     run_id: str,
     stage_data: dict[str, StageExecutionResult],
-):
+) -> Any:
     stage_config = pipeline_config.stages[stage_name]
     resilience_config = pipeline_config.get_effective_resilience(stage_name)
 
@@ -190,7 +192,7 @@ def _calculate_execution_stats(
 def build_success_result(
     pipeline_config: PipelineConfig,
     run_id: str,
-    start_time,
+    start_time: datetime,
     stage_results: list[StageExecutionResult],
     execution_metadata: dict[str, Any],
 ) -> PipelineExecutionResult:
@@ -223,12 +225,12 @@ def build_success_result(
     )
 
 
-def build_error_result(
+def build_error_result(  # noqa: PLR0913
     pipeline_config: PipelineConfig,
     run_id: str,
-    start_time,
+    start_time: datetime,
     stage_results: list[StageExecutionResult],
-    execution_metadata: dict[str, Any],  # Изменено: any -> Any
+    execution_metadata: dict[str, Any],
     error: Exception,
 ) -> PipelineExecutionResult:
     """Построение результата при ошибке выполнения"""

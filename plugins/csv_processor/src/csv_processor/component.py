@@ -1,6 +1,8 @@
 import ast
 import asyncio
+import io
 import logging
+import tempfile
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -37,7 +39,8 @@ class CSVExtract(BaseProcessClass):
         """Основной метод обработки"""
         try:
             logger.info(
-                f"Starting CSV extraction from: {self.config.source_config.path}"
+                "Starting CSV extraction from: %s",
+                self.config.source_config.path,
             )
 
             # Получаем данные из источника
@@ -54,7 +57,9 @@ class CSVExtract(BaseProcessClass):
                 data = self._postprocess_data(data)
 
                 logger.info(
-                    f"Successfully extracted {len(data)} rows with {len(data.columns)} columns"
+                    "Successfully extracted %s rows with %s columns",
+                    len(data),
+                    len(data.columns),
                 )
 
                 return Result(status="success", response=data)
@@ -104,28 +109,34 @@ class CSVExtract(BaseProcessClass):
             total=self.config.source_config.timeout
         )
 
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(
+        async with (
+            aiohttp.ClientSession(timeout=timeout) as session,
+            session.get(
                 self.config.source_config.path, headers=headers
-            ) as response:
-                response.raise_for_status()
+            ) as response,
+        ):
+            response.raise_for_status()
 
-                content = await response.text(
-                    encoding=self.config.source_config.encoding
-                )
-                logger.debug(
-                    f"Downloaded {len(content)} characters from HTTP source"
-                )
-                return content
+            content = await response.text(
+                encoding=self.config.source_config.encoding
+            )
+            logger.debug(
+                f"Downloaded {len(content)} characters from HTTP source"
+            )
+            return content
 
     async def _fetch_s3_csv(self) -> str:
         """Загрузка CSV файла из S3"""
         try:
-            import boto3
-            from botocore.exceptions import ClientError, NoCredentialsError
-        except ImportError:
-            msg = "boto3 library is required for S3 support. Install it with: pip install boto3"
-            raise ImportError(msg)
+            import boto3  # noqa: PLC0415
+            from botocore.exceptions import (  # noqa: PLC0415
+                ClientError,
+                NoCredentialsError,
+            )
+        except ImportError as ie:
+            msg = "boto3 library is required for S3 support.\
+            Install it with: pip install boto3"
+            raise ImportError(msg) from ie
 
         parsed_url = urlparse(self.config.source_config.path)
         bucket = parsed_url.netloc
@@ -152,17 +163,18 @@ class CSVExtract(BaseProcessClass):
             )
             return content
 
-        except (NoCredentialsError, ClientError) as e:
-            msg = f"S3 access error: {e}"
-            raise Exception(msg)
+        except (NoCredentialsError, ClientError) as ex:
+            msg = f"S3 access error: {ex}"
+            raise Exception(msg) from ex
 
     async def _fetch_ftp_csv(self) -> str:
         """Загрузка CSV файла по FTP"""
         try:
-            import aioftp
-        except ImportError:
-            msg = "aioftp library is required for FTP support. Install it with: pip install aioftp"
-            raise ImportError(msg)
+            import aioftp  # noqa: PLC0415
+        except ImportError as ie:
+            msg = "aioftp library is required for FTP support.\
+            Install it with: pip install aioftp"
+            raise ImportError(msg) from ie
 
         parsed_url = urlparse(self.config.source_config.path)
         host = parsed_url.hostname
@@ -174,9 +186,6 @@ class CSVExtract(BaseProcessClass):
         async with aioftp.Client() as client:
             await client.connect(host, port)
             await client.login(username, password)
-
-            # Скачиваем файл во временную директорию
-            import tempfile
 
             with tempfile.NamedTemporaryFile(
                 mode="w+b", delete=False
@@ -194,13 +203,14 @@ class CSVExtract(BaseProcessClass):
                 Path(temp_file.name).unlink()
 
                 logger.debug(
-                    f"Downloaded {len(content)} characters from FTP: {self.config.source_config.path}"
+                    "Downloaded %s characters from FTP: %s",
+                    len(content),
+                    self.config.source_config.path,
                 )
                 return content
 
     async def _parse_csv_batch(self, content: str) -> pl.DataFrame:
         """Парсинг CSV в batch режиме"""
-        import io
 
         # Создаем StringIO объект для polars
         csv_buffer = io.StringIO(content)
@@ -232,16 +242,15 @@ class CSVExtract(BaseProcessClass):
             )
             return df
 
-        except Exception as e:
+        except Exception as ex:
             if self.config.ignore_errors:
-                logger.warning(f"CSV parsing error (ignored): {e}")
+                logger.warning(f"CSV parsing error (ignored): {ex}")
                 return pl.DataFrame()
-            msg = f"CSV parsing failed: {e}"
-            raise Exception(msg)
+            msg = f"CSV parsing failed: {ex}"
+            raise Exception(msg) from ex
 
     async def _parse_csv_streaming(self, content: str) -> pl.DataFrame:
         """Потоковый парсинг CSV для больших файлов"""
-        import io
 
         # Для демонстрации - читаем батчами
         _ = io.StringIO(content)
@@ -289,12 +298,15 @@ class CSVExtract(BaseProcessClass):
                     chunks.append(chunk_df)
                     logger.debug(f"Processed batch: {len(chunk_df)} rows")
 
-            except Exception as e:
+            except Exception as ex:
                 if not self.config.ignore_errors:
-                    msg = f"Streaming CSV parsing failed at line {current_line}: {e}"
-                    raise Exception(msg)
+                    msg = f"Streaming CSV parsing\
+                    failed at line {current_line}: {ex}"
+                    raise Exception(msg) from ex
                 logger.warning(
-                    f"Skipped batch at line {current_line} due to error: {e}"
+                    "Skipped batch at line %s due to error: %s",
+                    current_line,
+                    ex,
                 )
 
             current_line += self.config.batch_size
@@ -360,10 +372,14 @@ class CSVExtract(BaseProcessClass):
                 data = data.filter(
                     ast.literal_eval(self.config.filter_condition)
                 )
-                logger.debug(f"Applied filter: {self.config.filter_condition}")
-            except Exception as e:
+                logger.debug(
+                    "Applied filter: %s", self.config.filter_condition
+                )
+            except Exception as ex:
                 logger.warning(
-                    f"Failed to apply filter '{self.config.filter_condition}': {e}"
+                    "Failed to apply filter '%s': %s",
+                    self.config.filter_condition,
+                    ex,
                 )
 
         # Лимит строк (если не был применен при чтении)
