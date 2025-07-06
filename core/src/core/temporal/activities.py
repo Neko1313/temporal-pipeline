@@ -31,7 +31,10 @@ async def execute_stage_activity(
     resilience_config: dict[str, Any] | None = None,
 ) -> StageExecutionResult:
     activity_logger.info(
-        f"Executing stage: {stage_name} ({stage_config.stage}.{stage_config.component})"
+        "Executing stage: %s (%s.%s)",
+        stage_name,
+        stage_config.stage,
+        stage_config.component,
     )
     start_time = time()
 
@@ -59,7 +62,8 @@ async def execute_stage_activity(
         if not component_class:
             available = registry.list_plugins(stage_config.stage)
             msg = (
-                f"Component '{stage_config.component}' of type '{stage_config.stage}' not found. "
+                f"Component '{stage_config.component}' "
+                f"of type '{stage_config.stage}' not found. "
                 f"Available: {available.get(stage_config.stage, [])}"
             )
             raise ValueError(msg)
@@ -120,7 +124,10 @@ async def execute_stage_activity(
                 )
 
             activity_logger.info(
-                f"Stage {stage_name} completed successfully: {records_processed} records in {execution_time:.2f}s"
+                "Stage %s completed successfully: %s records in %s s",
+                stage_name,
+                records_processed,
+                execution_time,
             )
 
             return StageExecutionResult(
@@ -224,7 +231,8 @@ async def validate_pipeline_activity(
             if not component_info:
                 available = registry.list_plugins(stage_config.stage)
                 validation_errors.append(
-                    f"Stage '{stage_name}': Component '{stage_config.component}' "
+                    f"Stage '{stage_name}': "
+                    f"Component '{stage_config.component}' "
                     f"of type '{stage_config.stage}' not found. "
                     f"Available: {available.get(stage_config.stage, [])}"
                 )

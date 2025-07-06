@@ -6,9 +6,9 @@ Temporal Pipeline CLI - Современный интерфейс командн
 import asyncio
 import json
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 import yaml
@@ -27,7 +27,7 @@ from rich.syntax import Syntax
 from rich.table import Table
 from rich.tree import Tree
 
-from core.component import PluginRegistry
+from core.component import PluginRegistry, Result
 from core.temporal.activities import (
     cleanup_pipeline_data_activity,
     execute_stage_activity,
@@ -36,6 +36,7 @@ from core.temporal.activities import (
 from core.temporal.scheduled_workflow import ScheduledPipelineWorkflow
 from core.temporal.workflow import DataPipelineWorkflow
 from core.yaml_loader import YAMLConfigParser
+from core.yaml_loader.interfaces import PipelineConfig
 
 console = Console()
 app = typer.Typer(
@@ -153,7 +154,8 @@ async def _run_pipeline_async(
                 if not component_info:
                     available = registry.list_plugins(stage_config.stage)
                     error_msg = (
-                        f"Стадия '{stage_name}': компонент '{stage_config.component}' "
+                        f"Стадия '{stage_name}': "
+                        f"компонент '{stage_config.component}' "
                         f"типа '{stage_config.stage}' не найден. "
                         f"Доступные: {available.get(stage_config.stage, [])}"
                     )
@@ -170,7 +172,6 @@ async def _run_pipeline_async(
 
             progress.update(task2, description="✅ Все плагины найдены")
 
-            # Отображение информации о пайплайне
             _display_pipeline_info(pipeline_config)
 
             if dry_run:
@@ -191,7 +192,7 @@ async def _run_pipeline_async(
             )
 
             try:
-                from temporalio.client import Client
+                from temporalio.client import Client  # noqa: PLC0415
 
                 client = await Client.connect(
                     temporal_host, namespace=namespace
@@ -205,18 +206,22 @@ async def _run_pipeline_async(
                     f"[red]❌ Не удалось подключиться к Temporal: {e}[/red]"
                 )
                 rprint(
-                    f"[yellow]💡 Убедитесь что Temporal Server запущен на {temporal_host}[/yellow]"
+                    f"[yellow]💡 Убедитесь что "
+                    f"Temporal Server запущен "
+                    f"на {temporal_host}[/yellow]"
                 )
-                raise typer.Exit(1)
+                typer.Exit(1)
 
             # Запуск пайплайна
             task4 = progress.add_task("🚀 Запуск пайплайна...", total=None)
 
-            from core.temporal.workflow import DataPipelineWorkflow
+            from core.temporal.workflow import (
+                DataPipelineWorkflow,
+            )
 
             actual_run_id = (
                 run_id
-                or f"cli_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
+                or f"cli_{datetime.now(tz=UTC).strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
             )
 
             if verbose:
@@ -251,10 +256,10 @@ async def _run_pipeline_async(
     except Exception as e:
         rprint(f"[red]❌ Ошибка: {e}[/red]")
         if verbose:
-            import traceback
+            import traceback  # noqa: PLC0415
 
             rprint(f"[dim]{traceback.format_exc()}[/dim]")
-        raise typer.Exit(1)
+        typer.Exit(1)
 
 
 @pipeline_app.command("validate")
@@ -382,7 +387,7 @@ async def _validate_config_async(
 
     except Exception as e:
         rprint(f"[red]❌ Ошибка валидации: {e}[/red]")
-        raise typer.Exit(1)
+        typer.Exit(1)
 
 
 @plugin_app.command("list")
@@ -414,7 +419,8 @@ async def _list_plugins_async(
         if plugin_type not in all_plugins:
             rprint(f"[red]❌ Неизвестный тип плагина: {plugin_type}[/red]")
             rprint(
-                f"[yellow]Доступные типы: {', '.join(all_plugins.keys())}[/yellow]"
+                f"[yellow]Доступные типы: "
+                f"{', '.join(all_plugins.keys())}[/yellow]"
             )
             raise typer.Exit(1)
         all_plugins = {plugin_type: all_plugins[plugin_type]}
@@ -437,7 +443,8 @@ async def _list_plugins_async(
         tree = Tree("🔌 [bold blue]Доступные плагины[/bold blue]")
         for ptype, plugins in all_plugins.items():
             type_branch = tree.add(
-                f"📂 [yellow]{ptype.upper()}[/yellow] ([dim]{len(plugins)} плагинов[/dim])"
+                f"📂 [yellow]{ptype.upper()}[/yellow] "
+                f"([dim]{len(plugins)} плагинов[/dim])"
             )
             for name, info in plugins.items():
                 plugin_info = f"[green]{name}[/green]"
@@ -538,7 +545,7 @@ def start_worker(
 
 def _load_env_file(env_file: Path) -> None:
     """Загрузка переменных окружения из файла"""
-    import os
+    import os  # noqa: PLC0415
 
     try:
         with open(env_file) as f:
@@ -551,16 +558,23 @@ def _load_env_file(env_file: Path) -> None:
         rprint(f"[red]❌ Ошибка загрузки env файла: {e}[/red]")
 
 
-def _display_pipeline_info(pipeline_config) -> None:
+def _display_pipeline_info(pipeline_config: PipelineConfig) -> None:
     """Отображение информации о пайплайне"""
-    panel_content = f"""
-[bold blue]Название:[/bold blue] {pipeline_config.name}
-[bold blue]Версия:[/bold blue] {pipeline_config.version}
-[bold blue]Описание:[/bold blue] {pipeline_config.description or "Не указано"}
-[bold blue]Стадий:[/bold blue] {len(pipeline_config.stages)}
-[bold blue]Макс. параллельность:[/bold blue] {pipeline_config.max_parallel_stages}
-[bold blue]Таймаут:[/bold blue] {pipeline_config.default_timeout}с
-"""
+    panel_content = """
+[bold blue]Название:[/bold blue] {}
+[bold blue]Версия:[/bold blue] {}
+[bold blue]Описание:[/bold blue] {}
+[bold blue]Стадий:[/bold blue] {}
+[bold blue]Макс. параллельность:[/bold blue] {}
+[bold blue]Таймаут:[/bold blue] {}с
+""".format(
+        pipeline_config.name,
+        pipeline_config.version,
+        pipeline_config.description or "Не указано",
+        len(pipeline_config.stages),
+        pipeline_config.max_parallel_stages,
+        pipeline_config.default_timeout,
+    )
 
     if pipeline_config.schedule.enabled:
         schedule_info = (
@@ -581,9 +595,9 @@ def _display_pipeline_info(pipeline_config) -> None:
     )
 
 
-def _display_pipeline_stats(pipeline_config) -> None:
+def _display_pipeline_stats(pipeline_config: PipelineConfig) -> None:
     """Статистика пайплайна"""
-    from collections import Counter
+    from collections import Counter  # noqa: PLC0415
 
     stage_types = Counter(
         stage.stage for stage in pipeline_config.stages.values()
@@ -607,12 +621,14 @@ def _display_pipeline_stats(pipeline_config) -> None:
     console.print(stats_table)
 
 
-def _display_dependency_analysis(pipeline_config) -> None:
+def _display_dependency_analysis(pipeline_config: PipelineConfig) -> None:
     """Анализ зависимостей"""
     rprint("\n[bold blue]📊 Анализ зависимостей:[/bold blue]")
 
     # Строим граф зависимостей
-    from core.temporal.utils.transform import build_execution_order
+    from core.temporal.utils.transform import (
+        build_execution_order,
+    )
 
     try:
         execution_order = build_execution_order(pipeline_config.stages)
@@ -631,7 +647,7 @@ def _display_dependency_analysis(pipeline_config) -> None:
         rprint(f"[red]❌ Ошибка в зависимостях: {e}[/red]")
 
 
-def _display_execution_results(result) -> None:
+def _display_execution_results(result: Result) -> None:
     """Отображение результатов выполнения"""
     if result.status == "success":
         rprint("\n🎉 [bold green]Пайплайн выполнен успешно![/bold green]")
@@ -730,7 +746,9 @@ def _create_pipeline_template(
         },
         "api_to_db": {
             "name": name,
-            "description": f"ETL пайплайн API -> Transform -> Database: {name}",
+            "description": f"ETL пайплайн API -> "
+            f"Transform -> "
+            f"Database: {name}",
             "version": "1.0.0",
             "schedule": {
                 "enabled": True,
@@ -812,7 +830,11 @@ def _create_pipeline_template(
                     "stage": "extract",
                     "component": "sql_extract",
                     "component_config": {
-                        "query": 'SELECT * FROM orders WHERE created_at > CURRENT_DATE - INTERVAL "7 days"',
+                        "query": "SELECT * FROM orders "
+                        "WHERE "
+                        "created_at > ("
+                        'CURRENT_DATE - INTERVAL "7 days"'
+                        ")",
                         "source_config": {"uri": "${ORDERS_DB_URL}"},
                     },
                 },
@@ -890,7 +912,8 @@ def _create_pipeline_template(
             )
 
         rprint(
-            f"✅ Создан шаблон пайплайна: [bold green]{output_path}[/bold green]"
+            f"✅ Создан шаблон пайплайна:"
+            f"[bold green]{output_path}[/bold green]"
         )
         rprint(f"📝 Тип: [yellow]{template}[/yellow]")
 
@@ -906,11 +929,15 @@ def _create_pipeline_template(
         )
 
         # Показываем следующие шаги
+        settings = chr(10).join(
+            f'   export {var}="your_value"'
+            for var in template_config.get("required_env_vars", [])
+        )
         next_steps = f"""
 [bold blue]Следующие шаги:[/bold blue]
 
 1. Настройте переменные окружения:
-   {chr(10).join(f'   export {var}="your_value"' for var in template_config.get("required_env_vars", []))}
+   {settings}
 
 2. Валидируйте конфигурацию:
    [cyan]temporal-pipeline pipeline validate {output_path}[/cyan]
@@ -928,8 +955,8 @@ def _create_pipeline_template(
 
         # Открываем в редакторе если нужно
         if edit:
-            import os
-            import subprocess
+            import os  # noqa: PLC0415
+            import subprocess  # noqa: PLC0415
 
             editor = os.environ.get("EDITOR", "nano")
             try:
@@ -939,7 +966,7 @@ def _create_pipeline_template(
 
     except Exception as e:
         rprint(f"[red]❌ Ошибка создания шаблона: {e}[/red]")
-        raise typer.Exit(1)
+        typer.Exit(1)
 
 
 async def _start_worker_async(
@@ -955,14 +982,13 @@ async def _start_worker_async(
         rprint(f"📍 Namespace: [bold yellow]{namespace}[/bold yellow]")
         rprint(f"📋 Task Queue: [bold green]{task_queue}[/bold green]")
 
-        from temporalio.client import Client
+        from temporalio.client import Client  # noqa: PLC0415
 
         client = await Client.connect(host, namespace=namespace)
 
         rprint("✅ [bold green]Подключение к Temporal успешно![/bold green]")
 
-        # Инициализируем registry для загрузки плагинов
-        from core.component import PluginRegistry
+        from core.component import PluginRegistry  # noqa: PLC0415
 
         registry = PluginRegistry()
         await registry.initialize()
@@ -972,12 +998,12 @@ async def _start_worker_async(
 
         try:
             rprint("✅ Все компоненты импортированы")
-        except ImportError as e:
-            rprint(f"[red]❌ Ошибка импорта: {e}[/red]")
-            raise typer.Exit(1)
+        except ImportError as ex:
+            rprint(f"[red]❌ Ошибка импорта: {ex}[/red]")
+            typer.Exit(1)
 
         # Создаем и настраиваем Worker
-        from temporalio.worker import Worker
+        from temporalio.worker import Worker  # noqa: PLC0415
 
         rprint("⚙️ Создание Worker...")
         rprint(f"   • Макс. activities: {max_activities}")
@@ -998,7 +1024,6 @@ async def _start_worker_async(
 
         rprint("\n🎉 [bold green]Worker готов к работе![/bold green]")
 
-        # Показываем информацию о Worker
         worker_info = f"""
 [bold blue]Информация о Worker:[/bold blue]
 
@@ -1021,8 +1046,8 @@ async def _start_worker_async(
 
     except KeyboardInterrupt:
         rprint("\n🛑 [yellow]Worker остановлен пользователем[/yellow]")
-    except Exception:
-        rprint(f"\n❌ [bold red]Ошибка Worker:[/bold red] {e}")
+    except Exception as ex:
+        rprint(f"\n❌ [bold red]Ошибка Worker:[/bold red] {ex}")
         import traceback  # noqa: PLC0415
 
         rprint(f"[dim]{traceback.format_exc()}[/dim]")
