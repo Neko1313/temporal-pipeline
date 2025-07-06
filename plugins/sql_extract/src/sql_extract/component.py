@@ -158,13 +158,12 @@ class SQLExtract(BaseProcessClass):
             raise ImportError(msg) from ie
 
         try:
-            parsed = urlparse(self.config.source_config.uri)
             self._connection_pool = await aiomysql.create_pool(
-                host=parsed.hostname,
-                port=parsed.port or 3306,
-                user=parsed.username,
-                password=parsed.password,
-                db=parsed.path.lstrip("/"),
+                host=self.config.source_config.uri.hostname,
+                port=self.config.source_config.uri.port or 3306,
+                user=self.config.source_config.uri.username,
+                password=self.config.source_config.uri.password,
+                db=self.config.source_config.uri.path,
                 minsize=1,
                 maxsize=self.config.source_config.connection_pool_size,
                 autocommit=True,
@@ -177,12 +176,10 @@ class SQLExtract(BaseProcessClass):
     async def _connect_sqlite(self) -> None:
         """Подключение к SQLite"""
         try:
-            parsed = urlparse(self.config.source_config.uri)
-            db_path = parsed.path
+            db_path = self.config.source_config.uri.path
             if db_path.startswith("/"):
-                db_path = db_path[1:]  # Убираем начальный слеш
+                db_path = db_path[1:]
 
-            # Для SQLite создаем простое подключение
             self._sqlite_path = db_path
             logger.debug(f"SQLite connection configured for: {db_path}")
         except Exception as ex:
@@ -217,23 +214,24 @@ class SQLExtract(BaseProcessClass):
                 await self._connection_pool.close()
             logger.debug("Database connection closed")
 
-    async def _execute_batch_query(self, query: str) -> pl.DataFrame:
+    async def _execute_batch_query(self, query: str) -> pl.DataFrame | None:
         """Выполнение запроса в batch режиме"""
-        parsed_uri = urlparse(self.config.source_config.uri)
-        scheme = parsed_uri.scheme.split("+")[0]
 
-        if scheme in ["postgresql", "postgres"]:
+        if self.config.source_config.uri.scheme in ["postgresql", "postgres"]:
             return await self._execute_postgresql_query(query)
-        if scheme == "mysql":
+        if self.config.source_config.uri.scheme == "mysql":
             return await self._execute_mysql_query(query)
-        if scheme == "sqlite":
+        if self.config.source_config.uri.scheme == "sqlite":
             return await self._execute_sqlite_query(query)
-        if scheme == "mssql":
+        if self.config.source_config.uri.scheme == "mssql":
             return await self._execute_mssql_query(query)
         return None
 
     async def _execute_postgresql_query(self, query: str) -> pl.DataFrame:
         """Выполнение PostgreSQL запроса"""
+        if self._connection_pool is None:
+            msg = ""
+            raise Exception(msg)
         async with self._connection_pool.acquire() as conn:
             # Подготавливаем параметры
             params = (
@@ -268,6 +266,9 @@ class SQLExtract(BaseProcessClass):
 
     async def _execute_mysql_query(self, query: str) -> pl.DataFrame:
         """Выполнение MySQL запроса"""
+        if self._connection_pool is None:
+            msg = ""
+            raise Exception(msg)
         async with (
             self._connection_pool.acquire() as conn,
             conn.cursor() as cursor,
@@ -309,7 +310,10 @@ class SQLExtract(BaseProcessClass):
     async def _execute_sqlite_query(self, query: str) -> pl.DataFrame:
         """Выполнение SQLite запроса"""
         try:
-            async with aiosqlite.connect(self._sqlite_path) as conn:
+            if self._sqlite_path is None:
+                raise NotImplementedError()
+
+            async with aiosqlite.connect(str(self._sqlite_path)) as conn:
                 conn.row_factory = aiosqlite.Row  # Для получения словарей
 
                 # Подготавливаем параметры
@@ -341,6 +345,9 @@ class SQLExtract(BaseProcessClass):
 
     async def _execute_mssql_query(self, query: str) -> pl.DataFrame:
         """Выполнение SQL Server запроса"""
+        if self._connection_pool is None:
+            msg = ""
+            raise Exception(msg)
         async with (
             self._connection_pool.acquire() as conn,
             conn.cursor() as cursor,
@@ -443,6 +450,9 @@ class SQLExtract(BaseProcessClass):
         return data
 
     def _rename_columns(self, data: pl.DataFrame) -> pl.DataFrame:
+        if self.config.column_mapping is None:
+            return data
+
         renames = {
             old_name: new_name
             for old_name, new_name in self.config.column_mapping.items()
@@ -451,6 +461,9 @@ class SQLExtract(BaseProcessClass):
         return data.rename(renames)
 
     def _cast_columns(self, data: pl.DataFrame) -> pl.DataFrame:
+        if self.config.data_types is None:
+            return data
+
         for column, dtype in self.config.data_types.items():
             if column not in data.columns:
                 continue
