@@ -4,7 +4,7 @@ version = "1.0.0"
 description = "SQL извлечение данных для Temporal Pipeline"
 readme = "README.md"
 authors = [
-    { name = "Data Engineering Team", email = "data-team@company.com" }
+    { name = "Neko1313", email = "89246763535@mail.ru" }
 ]
 requires-python = ">=3.13"
 dependencies = [

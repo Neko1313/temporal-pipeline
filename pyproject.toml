@@ -33,6 +33,7 @@ dev = [
     "pydocstyle>=6.3.0",
     "pyright>=1.1.402",
     "pytest>=8.4.1",
+    "pytest-asyncio>=1.0.0",
     "pytest-cov>=6.2.1",
     "pytest-randomly>=3.16.0",
     "ruff>=0.12.2",

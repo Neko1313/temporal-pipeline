@@ -5,6 +5,7 @@ from typing import Any
 
 from core.component.base import BaseProcessClass
 from core.component.interfaces import ComponentConfig, Info
+from core.component.registry.error import RegistryError
 
 logger = getLogger(__name__)
 
@@ -43,17 +44,17 @@ class PluginRegistry:
 
                 if group_name != plugin_class_info.type_module:
                     msg = "Plugin info error"
-                    raise Exception(msg)
+                    raise RegistryError(msg)
 
                 self._plugins[group_name][entry_point.name] = plugin_class_info
                 self._plugin_classes[group_name][entry_point.name] = (
-                    plugin_class  # ДОБАВЛЕНО
+                    plugin_class
                 )
 
                 loaded_count += 1
 
-        except Exception as ex:
-            logger.debug(ex)
+        except Exception as err:
+            logger.debug(err)
 
         return loaded_count
 

@@ -1,15 +1,16 @@
 from typing import Protocol, TypeVar
 
+from core.component.base.const import BASE_INFO, ERROR_MESSAGE
 from core.component.interfaces import ComponentConfig, Info, Result
 
 T_Config = TypeVar("T_Config", bound=ComponentConfig)
 
 
 class BaseProcess(Protocol):
-    async def process(self) -> Result: ...
+    async def process(self) -> Result: ...  # pragma: no cover
 
-    @property
-    def info(self) -> Info: ...
+    @classmethod
+    def info(cls) -> Info: ...  # pragma: no cover
 
 
 class BaseProcessClass[T_Config: ComponentConfig]:
@@ -19,15 +20,8 @@ class BaseProcessClass[T_Config: ComponentConfig]:
         self.config = config
 
     async def process(self) -> Result | None:
-        raise NotImplementedError()
+        raise NotImplementedError(ERROR_MESSAGE)
 
     @classmethod
     def info(cls) -> Info:
-        return Info(
-            name="base",
-            version="0.1.0",
-            description=None,
-            type_class=cls.__class__,
-            type_module="core",
-            config_class=ComponentConfig,
-        )
+        return BASE_INFO
