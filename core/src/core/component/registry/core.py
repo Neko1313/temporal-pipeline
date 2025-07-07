@@ -14,7 +14,7 @@ class PluginRegistry:
         self._plugins: dict[str, dict[str, Info]] = defaultdict(dict)
         self._plugin_classes: dict[str, dict[str, type[BaseProcessClass]]] = (
             defaultdict(dict)
-        )  # ДОБАВЛЕНО
+        )
         self._plugin_groups = {
             "extract": BaseProcessClass,
             "transform": BaseProcessClass,
