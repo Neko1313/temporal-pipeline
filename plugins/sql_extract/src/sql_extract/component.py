@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from core.component import BaseProcessClass, Result
+from core.component import BaseProcessClass, Result, Info
 from sql_extract.config import SQLExtractConfig
 
 logger = logging.getLogger(__name__)
@@ -253,75 +253,13 @@ class SQLExtract(BaseProcessClass[SQLExtractConfig]):
             await self._engine.dispose()
             logger.debug("SQLAlchemy движок закрыт")
 
-
-class SQLQueryBuilder:
-    """Утилита для построения SQL запросов"""
-
-    @staticmethod
-    def build_select_query(
-        table: str,
-        columns: list | None = None,
-        where_conditions: dict[str, Any] | None = None,
-        order_by: str | None = None,
-        limit: int | None = None,
-    ) -> str:
-        """Построение SELECT запроса"""
-        cols = "*" if not columns else ", ".join(columns)
-        query = f"SELECT {cols} FROM {table}"  # noqa: S608
-
-        if where_conditions:
-            conditions = []
-            for key, value in where_conditions.items():
-                if isinstance(value, str):
-                    conditions.append(f"{key} = '{value}'")
-                else:
-                    conditions.append(f"{key} = {value}")
-            query += " WHERE " + " AND ".join(conditions)
-
-        if order_by:
-            query += f" ORDER BY {order_by}"
-
-        if limit:
-            query += f" LIMIT {limit}"
-
-        return query
-
-    @staticmethod
-    def build_count_query(
-        table: str, where_conditions: dict[str, Any] | None = None
-    ) -> str:
-        """Построение COUNT запроса"""
-        query = f"SELECT COUNT(*) as total_count FROM {table}"  # noqa: S608
-
-        if where_conditions:
-            conditions = []
-            for key, value in where_conditions.items():
-                if isinstance(value, str):
-                    conditions.append(f"{key} = '{value}'")
-                else:
-                    conditions.append(f"{key} = {value}")
-            query += " WHERE " + " AND ".join(conditions)
-
-        return query
-
-
-class DatabaseConnectionTester:
-    """Утилита для тестирования подключений к базам данных"""
-
-    @staticmethod
-    async def test_connection(uri: str) -> bool:
-        """Тестирование подключения к базе данных"""
-        try:
-            # Создаем временный движок
-            engine = create_async_engine(uri, pool_size=1)
-
-            # Пытаемся выполнить простой запрос
-            async with engine.begin() as conn:
-                await conn.execute(text("SELECT 1"))
-
-            await engine.dispose()
-            return True
-
-        except Exception as e:
-            logger.error(f"Ошибка подключения к базе данных: {e}")
-            return False
+    @classmethod
+    def info(cls) -> Info:
+        return Info(
+            name="SQLExtract",
+            version="1.0.0",
+            description=None,
+            type_class=cls.__class__,
+            type_module="extract",
+            config_class=SQLExtractConfig,
+        )

@@ -39,4 +39,4 @@ stages:
 required_env_vars: []
 
 max_parallel_stages: 2
-default_timeout: 300
+default_timeout: 1
