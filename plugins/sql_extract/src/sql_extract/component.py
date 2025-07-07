@@ -22,9 +22,7 @@ from sql_extract.config import SQLExtractConfig
 logger = logging.getLogger(__name__)
 
 
-class SQLExtract(BaseProcessClass):
-    config: SQLExtractConfig
-
+class SQLExtract(BaseProcessClass[SQLExtractConfig]):
     def __init__(self, config: SQLExtractConfig) -> None:
         super().__init__(config)
         self._engine: AsyncEngine | None = None

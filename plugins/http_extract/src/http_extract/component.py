@@ -22,20 +22,7 @@ from http_extract.config import HTTPExtractConfig
 logger = logging.getLogger(__name__)
 
 
-class HTTPExtract(BaseProcessClass):
-    """
-    HTTP Extract компонент для извлечения данных из REST API и HTTP источников
-
-    Поддерживаемые функции:
-    - Различные типы аутентификации (Bearer, Basic, API Key, OAuth2)
-    - Пагинация (offset, page, cursor, link header)
-    - Обработка JSON, XML, CSV ответов
-    - Retry механизм с экспоненциальной задержкой
-    - Rate limiting
-    - Кэширование ответов
-    """
-
-    config: HTTPExtractConfig
+class HTTPExtract(BaseProcessClass[HTTPExtractConfig]):
 
     def __init__(self, config: HTTPExtractConfig) -> None:
         super().__init__(config)

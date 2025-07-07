@@ -16,8 +16,9 @@ from json_processor.config import AggregationConfig, JSONTransformConfig
 logger = logging.getLogger(__name__)
 
 
-class JSONTransform(BaseProcessClass):
-    config: JSONTransformConfig
+class JSONTransform(BaseProcessClass[JSONTransformConfig]):
+    def __init__(self, config: JSONTransformConfig) -> None:
+        super().__init__(config)
 
     async def process(self) -> Result:
         """Основной метод обработки"""

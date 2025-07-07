@@ -1,6 +1,8 @@
-from typing import Protocol
+from typing import Protocol, TypeVar
 
 from core.component.interfaces import ComponentConfig, Info, Result
+
+T_Config = TypeVar("T_Config", bound=ComponentConfig)
 
 
 class BaseProcess(Protocol):
@@ -10,10 +12,10 @@ class BaseProcess(Protocol):
     def info(self) -> Info: ...
 
 
-class BaseProcessClass:
-    config: ComponentConfig
+class BaseProcessClass[T_Config: ComponentConfig]:
+    config: T_Config
 
-    def __init__(self, config: ComponentConfig) -> None:
+    def __init__(self, config: T_Config) -> None:
         self.config = config
 
     async def process(self) -> Result | None:
