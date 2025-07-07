@@ -24,3 +24,18 @@ build-backend = "hatchling.build"
 temporal-pipeline = "core.cli:app"
 tpd = "core.cli:app"
 pipeline = "core.cli:app"
+
+# Tests settings
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+pythonpath = "."
+
+log_cli = true
+log_cli_level = "INFO"
+log_cli_format = "%(asctime)s [%(levelname)8s] %(name)s: %(message)s"
+log_cli_date_format = "%Y-%m-%d %H:%M:%S"
+
