@@ -6,7 +6,7 @@ from core.component import ComponentConfig
 
 
 class AuthConfig(BaseModel):
-    """Конфигурация аутентификации"""
+    """Конфигурация аутентификации."""
 
     auth_type: Literal["bearer", "basic", "api_key", "oauth2", "none"] = Field(
         ..., description="Тип аутентификации: bearer, basic, api_key, oauth2"
@@ -41,7 +41,7 @@ class AuthConfig(BaseModel):
 
 
 class PaginationConfig(BaseModel):
-    """Конфигурация пагинации"""
+    """Конфигурация пагинации."""
 
     pagination_type: Literal[
         "offset", "page", "cursor", "link_header", "none"
@@ -91,7 +91,7 @@ class PaginationConfig(BaseModel):
 
 
 class HTTPExtractConfig(ComponentConfig):
-    """Конфигурация HTTP Extract компонента"""
+    """Конфигурация HTTP Extract компонента."""
 
     # Основные параметры
     url: str = Field(..., description="URL для запроса")

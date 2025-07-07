@@ -1,13 +1,11 @@
-"""
-Утилиты для безопасной работы в Temporal sandbox
-"""
+"""Утилиты для безопасной работы в Temporal sandbox."""
 
 from types import ModuleType
 from typing import Any
 
 
 def safe_polars_import() -> ModuleType | None:
-    """Безопасный импорт polars в temporal context"""
+    """Безопасный импорт polars в temporal context."""
     try:
         import polars as pl  # noqa: PLC0415
 
@@ -18,7 +16,7 @@ def safe_polars_import() -> ModuleType | None:
 
 
 def is_polars_dataframe(obj: Any) -> bool:
-    """Проверяет является ли объект polars DataFrame без прямого импорта"""
+    """Проверяет является ли объект polars DataFrame без прямого импорта."""
     try:
         pl = safe_polars_import()
         if pl is None:
@@ -29,7 +27,7 @@ def is_polars_dataframe(obj: Any) -> bool:
 
 
 def get_dataframe_info(df: Any) -> dict:
-    """Получает информацию о DataFrame безопасным способом"""
+    """Получает информацию о DataFrame безопасным способом."""
     if not is_polars_dataframe(df):
         return {"rows": 0, "columns": 0, "column_names": []}
 

@@ -6,7 +6,7 @@ from core.component import ComponentConfig
 
 
 class AggregationConfig(BaseModel):
-    """Конфигурация агрегации"""
+    """Конфигурация агрегации."""
 
     group_by: list[str] = Field(
         default_factory=list, description="Колонки для группировки"
@@ -28,7 +28,7 @@ class AggregationConfig(BaseModel):
 
 
 class JoinConfig(BaseModel):
-    """Конфигурация соединения с другими данными"""
+    """Конфигурация соединения с другими данными."""
 
     join_type: Literal[
         "inner",
@@ -47,7 +47,7 @@ class JoinConfig(BaseModel):
 
 
 class JSONNormalizationConfig(BaseModel):
-    """Конфигурация нормализации JSON"""
+    """Конфигурация нормализации JSON."""
 
     json_columns: list[str] = Field(..., description="Колонки с JSON данными")
     max_level: int = Field(
@@ -62,7 +62,7 @@ class JSONNormalizationConfig(BaseModel):
 
 
 class JSONTransformConfig(ComponentConfig):
-    """Конфигурация JSON Transform компонента"""
+    """Конфигурация JSON Transform компонента."""
 
     input_data: Any = Field(
         default=None, description="Входные данные от предыдущих стадий"

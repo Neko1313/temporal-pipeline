@@ -8,7 +8,7 @@ DB_DSN = MySQLDsn | PostgresDsn | ClickHouseDsn
 
 
 class SQLSourceConfig(BaseModel):
-    """Конфигурация подключения к БД"""
+    """Конфигурация подключения к БД."""
 
     uri: DB_DSN = Field(..., description="URI подключения к базе данных")
     headers: dict[str, str] | None = Field(
@@ -33,7 +33,7 @@ class SQLSourceConfig(BaseModel):
 
 
 class SQLExtractConfig(ComponentConfig):
-    """Конфигурация SQL Extract компонента"""
+    """Конфигурация SQL Extract компонента."""
 
     query: str = Field(
         ..., min_length=1, description="SQL запрос для выполнения"

@@ -38,13 +38,13 @@ class CircuitBreakerConfig:
 
 
 class RetryManager:
-    """Управление повторными попытками с различными стратегиями"""
+    """Управление повторными попытками с различными стратегиями."""
 
     def __init__(self, config: RetryConfig) -> None:
         self.config = config
 
     def calculate_delay(self, attempt: int) -> float:
-        """Вычисляет задержку для конкретной попытки"""
+        """Вычисляет задержку для конкретной попытки."""
         if self.config.policy == RetryPolicy.EXPONENTIAL_BACKOFF:
             delay = self.config.initial_delay * (
                 self.config.backoff_multiplier ** (attempt - 1)
@@ -59,14 +59,13 @@ class RetryManager:
         delay = min(delay, self.config.max_delay)
 
         if self.config.jitter:
-            # Добавляем случайное отклонение ±10%
             jitter = delay * 0.1 * (2 * secrets.SystemRandom().random() - 1)
             delay += jitter
 
         return max(0, delay)
 
     def _fibonacci(self, n: int) -> int:
-        """Вычисляет n-е число Фибоначчи"""
+        """Вычисляет n-е число Фибоначчи."""
         if n <= 1:
             return n
         a, b = 0, 1
@@ -79,7 +78,7 @@ class RetryManager:
         operation: Callable[[], Any],
         should_retry: Callable[[Exception], bool] | None = None,
     ) -> Any:
-        """Выполняет операцию с повторными попытками"""
+        """Выполняет операцию с повторными попытками."""
         last_exception = None
 
         for attempt in range(1, self.config.max_attempts + 1):
@@ -103,7 +102,7 @@ class RetryManager:
 
 
 class CircuitBreaker:
-    """Circuit Breaker для предотвращения каскадных сбоев"""
+    """Circuit Breaker для предотвращения каскадных сбоев."""
 
     def __init__(self, config: CircuitBreakerConfig) -> None:
         self.config = config
@@ -113,7 +112,7 @@ class CircuitBreaker:
         self.last_failure_time = 0
 
     async def execute(self, operation: Callable[[], Any]) -> Any:
-        """Выполняет операцию через Circuit Breaker"""
+        """Выполняет операцию через Circuit Breaker."""
         if self.state == CircuitBreakerState.OPEN:
             if (
                 time.time() - self.last_failure_time
@@ -134,7 +133,7 @@ class CircuitBreaker:
             raise e
 
     async def _on_success(self) -> None:
-        """Обработка успешного выполнения"""
+        """Обработка успешного выполнения."""
         if self.state == CircuitBreakerState.HALF_OPEN:
             self.success_count += 1
             if self.success_count >= self.config.success_threshold:
@@ -144,7 +143,7 @@ class CircuitBreaker:
             self.failure_count = 0
 
     async def _on_failure(self) -> None:
-        """Обработка неудачного выполнения"""
+        """Обработка неудачного выполнения."""
         self.failure_count += 1
         self.last_failure_time = time.time()
 
@@ -153,6 +152,6 @@ class CircuitBreaker:
 
 
 class CircuitBreakerOpenError(Exception):
-    """Исключение, выбрасываемое когда Circuit Breaker открыт"""
+    """Исключение, выбрасываемое когда Circuit Breaker открыт."""
 
     pass

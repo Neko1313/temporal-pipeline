@@ -62,7 +62,7 @@ class PluginRegistry:
         self, plugin_type: str, plugin_name: str
     ) -> type[BaseProcessClass] | None:
         """
-        Получает класс плагина по типу и имени
+        Получает класс плагина по типу и имени.
 
         Args:
             plugin_type: Тип плагина (extract, transform, load)
@@ -70,6 +70,7 @@ class PluginRegistry:
 
         Returns:
             Класс плагина или None если не найден
+
         """
         return self._plugin_classes.get(plugin_type, {}).get(plugin_name)
 
@@ -77,7 +78,7 @@ class PluginRegistry:
         self, plugin_type: str, plugin_name: str
     ) -> Info | None:
         """
-        Получает информацию о плагине
+        Получает информацию о плагине.
 
         Args:
             plugin_type: Тип плагина (extract, transform, load)
@@ -85,6 +86,7 @@ class PluginRegistry:
 
         Returns:
             Информация о плагине или None если не найден
+
         """
         return self._plugins.get(plugin_type, {}).get(plugin_name)
 
@@ -92,13 +94,14 @@ class PluginRegistry:
         self, plugin_type: str | None = None
     ) -> dict[str, list[str]]:
         """
-        Возвращает список доступных плагинов
+        Возвращает список доступных плагинов.
 
         Args:
             plugin_type: Тип плагина для фильтрации (optional)
 
         Returns:
             Словарь с типами плагинов и их именами
+
         """
         if plugin_type:
             return {
@@ -114,7 +117,7 @@ class PluginRegistry:
         self, plugin_type: str, plugin_name: str, config_data: dict[str, Any]
     ) -> dict[str, Any]:
         """
-        Валидирует конфигурацию компонента
+        Валидирует конфигурацию компонента.
 
         Args:
             plugin_type: Тип плагина
@@ -123,6 +126,7 @@ class PluginRegistry:
 
         Returns:
             Результат валидации с ошибками (если есть)
+
         """
         plugin_class = self.get_plugin(plugin_type, plugin_name)
         if not plugin_class:
@@ -148,10 +152,11 @@ class PluginRegistry:
 
     def get_all_plugins(self) -> dict[str, dict[str, Info]]:
         """
-        Возвращает всю информацию о плагинах
+        Возвращает всю информацию о плагинах.
 
         Returns:
             Полный каталог плагинов с их информацией
+
         """
         return dict(self._plugins)
 
@@ -162,12 +167,13 @@ class PluginRegistry:
         plugin_class: type[BaseProcessClass],
     ) -> None:
         """
-        Регистрирует плагин вручную (для тестирования)
+        Регистрирует плагин вручную (для тестирования).
 
         Args:
             plugin_type: Тип плагина
             plugin_name: Имя плагина
             plugin_class: Класс плагина
+
         """
         if plugin_type not in self._plugin_groups:
             msg = f"Unknown plugin type: {plugin_type}"

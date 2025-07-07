@@ -179,7 +179,7 @@ def _create_failed_result(
 def _calculate_execution_stats(
     stage_results: list[StageExecutionResult],
 ) -> tuple[int, int, int]:
-    """Вычисление статистики выполнения"""
+    """Вычисление статистики выполнения."""
     total_records = sum(r.records_processed for r in stage_results)
     successful_stages = len(
         [r for r in stage_results if r.status == "success"]
@@ -196,7 +196,7 @@ def build_success_result(
     stage_results: list[StageExecutionResult],
     execution_metadata: dict[str, Any],
 ) -> PipelineExecutionResult:
-    """Построение результата успешного выполнения"""
+    """Построение результата успешного выполнения."""
     execution_time = (workflow.now() - start_time).total_seconds()
     total_records, successful_stages, failed_stages = (
         _calculate_execution_stats(stage_results)
@@ -233,7 +233,7 @@ def build_error_result(  # noqa: PLR0913
     execution_metadata: dict[str, Any],
     error: Exception,
 ) -> PipelineExecutionResult:
-    """Построение результата при ошибке выполнения"""
+    """Построение результата при ошибке выполнения."""
     execution_time = (workflow.now() - start_time).total_seconds()
     _, successful_stages, _ = _calculate_execution_stats(stage_results)
 

@@ -1,6 +1,6 @@
 """
 HTTP Extract Plugin - Извлечение данных из REST API и HTTP источников
-Поддерживает JSON, XML, CSV, pagination, authentication
+Поддерживает JSON, XML, CSV, pagination, authentication.
 """
 
 import asyncio
@@ -31,7 +31,7 @@ class HTTPExtract(BaseProcessClass[HTTPExtractConfig]):
         self._last_request_time = None
 
     async def process(self) -> Result | None:
-        """Основной метод обработки"""
+        """Основной метод обработки."""
         try:
             logger.info(f"Starting HTTP extraction from: {self.config.url}")
 
@@ -66,7 +66,7 @@ class HTTPExtract(BaseProcessClass[HTTPExtractConfig]):
             await self._close_session()
 
     async def _create_session(self) -> None:
-        """Создание HTTP сессии"""
+        """Создание HTTP сессии."""
         timeout = aiohttp.ClientTimeout(total=self.config.timeout)
         connector = aiohttp.TCPConnector(limit=10, limit_per_host=5)
 
@@ -77,12 +77,12 @@ class HTTPExtract(BaseProcessClass[HTTPExtractConfig]):
         )
 
     async def _close_session(self) -> None:
-        """Закрытие HTTP сессии"""
+        """Закрытие HTTP сессии."""
         if self._session:
             await self._session.close()
 
     async def _setup_authentication(self) -> None:
-        """Настройка аутентификации"""
+        """Настройка аутентификации."""
         if not self.config.auth_config:
             return
 
@@ -112,7 +112,7 @@ class HTTPExtract(BaseProcessClass[HTTPExtractConfig]):
             await self._setup_oauth2()
 
     async def _setup_oauth2(self) -> None:
-        """Настройка OAuth2 аутентификации"""
+        """Настройка OAuth2 аутентификации."""
         auth_config = self.config.auth_config
         if auth_config is None or not auth_config.oauth2_token_url:
             msg = "oauth2_token_url is required for OAuth2 authentication"
@@ -146,14 +146,14 @@ class HTTPExtract(BaseProcessClass[HTTPExtractConfig]):
                 raise ValueError(msg)
 
     async def _extract_single_request(self) -> pl.DataFrame | None:
-        """Извлечение данных одним запросом"""
+        """Извлечение данных одним запросом."""
         response_data = await self._make_request(
             self.config.url, self.config.params
         )
         return await self._parse_response(response_data)
 
     async def _extract_paginated_data(self) -> pl.DataFrame:
-        """Извлечение данных с пагинацией"""
+        """Извлечение данных с пагинацией."""
         all_dataframes = []
 
         match self.config.pagination_config:
@@ -179,8 +179,7 @@ class HTTPExtract(BaseProcessClass[HTTPExtractConfig]):
         return pl.DataFrame()
 
     async def _extract_offset_pagination(self) -> list[pl.DataFrame]:
-        """Пагинация по offset"""
-
+        """Пагинация по offset."""
         if self.config.pagination_config is None:
             return []
 
@@ -227,7 +226,7 @@ class HTTPExtract(BaseProcessClass[HTTPExtractConfig]):
         return dataframes
 
     async def _extract_page_pagination(self) -> list[pl.DataFrame]:
-        """Пагинация по номеру страницы"""
+        """Пагинация по номеру страницы."""
         if self.config.pagination_config is None:
             return []
 
@@ -263,7 +262,7 @@ class HTTPExtract(BaseProcessClass[HTTPExtractConfig]):
         return dataframes
 
     async def _extract_cursor_pagination(self) -> list[pl.DataFrame]:
-        """Пагинация по cursor"""
+        """Пагинация по cursor."""
         if self.config.pagination_config is None:
             return []
 
@@ -306,7 +305,7 @@ class HTTPExtract(BaseProcessClass[HTTPExtractConfig]):
         return dataframes
 
     async def _extract_link_header_pagination(self) -> list[pl.DataFrame]:
-        """Пагинация по Link заголовку"""
+        """Пагинация по Link заголовку."""
         if self.config.pagination_config is None:
             return []
 
@@ -345,15 +344,14 @@ class HTTPExtract(BaseProcessClass[HTTPExtractConfig]):
     async def _make_request(
         self, url: str, params: dict[str, Any] | None = None
     ) -> Any:
-        """Выполнение HTTP запроса"""
+        """Выполнение HTTP запроса."""
         response, _ = await self._make_request_with_headers(url, params)
         return response
 
     async def _make_request_with_headers(
         self, url: str, params: dict[str, Any] | None = None
     ) -> tuple:
-        """Выполнение HTTP запроса с возвратом заголовков"""
-
+        """Выполнение HTTP запроса с возвратом заголовков."""
         # Применяем rate limiting
         await self._apply_rate_limit()
 
@@ -418,7 +416,7 @@ class HTTPExtract(BaseProcessClass[HTTPExtractConfig]):
         return None, None
 
     async def _parse_response(self, response_data: Any) -> pl.DataFrame | None:
-        """Парсинг ответа в DataFrame"""
+        """Парсинг ответа в DataFrame."""
         if response_data is None:
             return None
 
@@ -439,8 +437,7 @@ class HTTPExtract(BaseProcessClass[HTTPExtractConfig]):
     async def _parse_json_response(
         self, json_data: dict[str, Any]
     ) -> pl.DataFrame:
-        """Парсинг JSON ответа"""
-
+        """Парсинг JSON ответа."""
         # Извлекаем данные по указанному пути
         if self.config.json_data_path:
             data = self._get_nested_value(
@@ -469,7 +466,7 @@ class HTTPExtract(BaseProcessClass[HTTPExtractConfig]):
         return df
 
     async def _parse_xml_response(self, xml_text: str) -> pl.DataFrame:
-        """Парсинг XML ответа"""
+        """Парсинг XML ответа."""
         try:
             root = ElementTree.fromstring(xml_text)
 
@@ -499,7 +496,7 @@ class HTTPExtract(BaseProcessClass[HTTPExtractConfig]):
             return pl.DataFrame()
 
     async def _parse_csv_response(self, csv_text: str) -> pl.DataFrame:
-        """Парсинг CSV ответа"""
+        """Парсинг CSV ответа."""
         try:
             csv_buffer = io.StringIO(csv_text)
             return pl.read_csv(csv_buffer)
@@ -529,12 +526,12 @@ class HTTPExtract(BaseProcessClass[HTTPExtractConfig]):
         return current
 
     def _flatten_json_columns(self, df: pl.DataFrame) -> pl.DataFrame:
-        """Выравнивание JSON колонок в DataFrame"""
+        """Выравнивание JSON колонок в DataFrame."""
         # Простая реализация - можно расширить
         return df
 
     def _parse_link_header(self, link_header: str | None) -> str | None:
-        """Парсинг Link заголовка для получения следующей ссылки"""
+        """Парсинг Link заголовка для получения следующей ссылки."""
         if not link_header:
             return None
 
@@ -549,7 +546,7 @@ class HTTPExtract(BaseProcessClass[HTTPExtractConfig]):
         return None
 
     async def _apply_rate_limit(self) -> None:
-        """Применение rate limiting"""
+        """Применение rate limiting."""
         if not self.config.rate_limit:
             return
 
@@ -565,8 +562,7 @@ class HTTPExtract(BaseProcessClass[HTTPExtractConfig]):
 
     @staticmethod
     def _generate_cache_key(url: str, params: dict[str, Any] | None) -> str:
-        """Генерация ключа для кэша"""
-
+        """Генерация ключа для кэша."""
         params_str = json.dumps(params or {}, sort_keys=True)
         cache_string = f"{url}:{params_str}"
         return hashlib.sha256(cache_string.encode()).hexdigest()

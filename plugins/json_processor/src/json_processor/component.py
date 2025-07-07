@@ -14,7 +14,7 @@ class JSONTransform(BaseProcessClass[JSONTransformConfig]):
         super().__init__(config)
 
     async def process(self) -> Result:
-        """Основной метод обработки"""
+        """Основной метод обработки."""
         try:
             logger.info("Starting JSON transformation")
 
@@ -58,8 +58,7 @@ class JSONTransform(BaseProcessClass[JSONTransformConfig]):
             return Result(status="error", response=None)
 
     def _get_input_data(self) -> pl.DataFrame | None:  # noqa: PLR0911
-        """Получение входных данных из зависимостей или конфигурации"""
-
+        """Получение входных данных из зависимостей или конфигурации."""
         temporal_data = getattr(self, "_temporal_input_data", None)
         if temporal_data:
             logger.debug(f"Found temporal input data: {type(temporal_data)}")
@@ -94,7 +93,7 @@ class JSONTransform(BaseProcessClass[JSONTransformConfig]):
         return None
 
     def _add_processing_metadata(self, data: pl.DataFrame) -> pl.DataFrame:
-        """Добавление метаданных обработки"""
+        """Добавление метаданных обработки."""
         try:
             metadata_columns = {
                 "_processed_at": datetime.now(tz=UTC).isoformat(),
@@ -118,7 +117,7 @@ class JSONTransform(BaseProcessClass[JSONTransformConfig]):
     async def _apply_json_normalization(
         self, data: pl.DataFrame
     ) -> pl.DataFrame:
-        """Нормализация JSON колонок"""
+        """Нормализация JSON колонок."""
         if not self.config.json_normalization:
             return data
         # Заглушка - в данном примере не используется
@@ -127,35 +126,35 @@ class JSONTransform(BaseProcessClass[JSONTransformConfig]):
     async def _apply_column_operations(
         self, data: pl.DataFrame
     ) -> pl.DataFrame:
-        """Применение операций над колонками"""
+        """Применение операций над колонками."""
         if not self.config.column_operations:
             return data
         # Заглушка - можно расширить
         return data
 
     async def _apply_filtering(self, data: pl.DataFrame) -> pl.DataFrame:
-        """Применение фильтров"""
+        """Применение фильтров."""
         if not self.config.filter_conditions:
             return data
         # Заглушка - можно расширить
         return data
 
     async def _apply_join_operations(self, data: pl.DataFrame) -> pl.DataFrame:
-        """Применение соединений"""
+        """Применение соединений."""
         if not self.config.join_config:
             return data
         # Заглушка - можно расширить
         return data
 
     async def _apply_aggregation(self, data: pl.DataFrame) -> pl.DataFrame:
-        """Применение агрегации"""
+        """Применение агрегации."""
         if not self.config.aggregation:
             return data
         # Заглушка - можно расширить
         return data
 
     async def _apply_deduplication(self, data: pl.DataFrame) -> pl.DataFrame:
-        """Удаление дубликатов"""
+        """Удаление дубликатов."""
         if not self.config.deduplicate:
             return data
 
@@ -174,11 +173,11 @@ class JSONTransform(BaseProcessClass[JSONTransformConfig]):
             return data
 
     async def _apply_null_handling(self, data: pl.DataFrame) -> pl.DataFrame:
-        """Обработка пропущенных значений"""
+        """Обработка пропущенных значений."""
         return data  # Заглушка
 
     async def _apply_sorting(self, data: pl.DataFrame) -> pl.DataFrame:
-        """Применение сортировки"""
+        """Применение сортировки."""
         if not self.config.sort_columns:
             return data
 
@@ -194,7 +193,7 @@ class JSONTransform(BaseProcessClass[JSONTransformConfig]):
             return data
 
     async def _apply_sampling(self, data: pl.DataFrame) -> pl.DataFrame:
-        """Применение семплирования"""
+        """Применение семплирования."""
         if self.config.sample_size:
             try:
                 sample_size = min(self.config.sample_size, len(data))

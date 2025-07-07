@@ -1,6 +1,6 @@
 """
 SQL Extract Plugin - Переписанная версия с использованием SQLAlchemy
-Поддерживает PostgreSQL, MySQL, SQLite, SQL Server через единый интерфейс
+Поддерживает PostgreSQL, MySQL, SQLite, SQL Server через единый интерфейс.
 """
 
 import hashlib
@@ -29,7 +29,7 @@ class SQLExtract(BaseProcessClass[SQLExtractConfig]):
         self._cache: dict[str, pl.DataFrame] = {}
 
     async def process(self) -> Result | None:
-        """Основной метод обработки"""
+        """Основной метод обработки."""
         try:
             logger.info(
                 f"Starting SQL extraction: {self.config.query[:100]}..."
@@ -77,7 +77,7 @@ class SQLExtract(BaseProcessClass[SQLExtractConfig]):
             await self._cleanup()
 
     def _prepare_query(self) -> str:
-        """Подготовка SQL запроса с дополнительными условиями"""
+        """Подготовка SQL запроса с дополнительными условиями."""
         query = self.config.query.strip()
 
         # Добавляем дополнительное WHERE условие
@@ -96,7 +96,7 @@ class SQLExtract(BaseProcessClass[SQLExtractConfig]):
         return query
 
     async def _create_engine(self) -> None:
-        """Создание асинхронного движка SQLAlchemy"""
+        """Создание асинхронного движка SQLAlchemy."""
         try:
             # Конвертируем URI для SQLAlchemy
             uri = self._convert_uri_for_sqlalchemy(
@@ -124,7 +124,7 @@ class SQLExtract(BaseProcessClass[SQLExtractConfig]):
             raise Exception(msg) from e
 
     def _convert_uri_for_sqlalchemy(self, uri: str) -> str:
-        """Конвертация URI для совместимости с SQLAlchemy"""
+        """Конвертация URI для совместимости с SQLAlchemy."""
         parsed = urlparse(uri)
         scheme = parsed.scheme
 
@@ -144,7 +144,7 @@ class SQLExtract(BaseProcessClass[SQLExtractConfig]):
         return uri
 
     async def _execute_query(self, query: str) -> pl.DataFrame | None:
-        """Выполнение SQL запроса через SQLAlchemy"""
+        """Выполнение SQL запроса через SQLAlchemy."""
         if not self._session_factory:
             msg = "Session factory не инициализирована"
             raise Exception(msg)
@@ -187,7 +187,7 @@ class SQLExtract(BaseProcessClass[SQLExtractConfig]):
             raise
 
     def _postprocess_data(self, data: pl.DataFrame) -> pl.DataFrame:
-        """Постобработка данных"""
+        """Постобработка данных."""
         if self.config.column_mapping:
             data = data.rename(self.config.column_mapping)
 
@@ -230,24 +230,24 @@ class SQLExtract(BaseProcessClass[SQLExtractConfig]):
         return data
 
     def _check_cache(self) -> pl.DataFrame | None:
-        """Проверка кэша"""
+        """Проверка кэша."""
         cache_key = self._generate_cache_key()
         return self._cache.get(cache_key)
 
     def _cache_result(self, data: pl.DataFrame) -> None:
-        """Кэширование результата"""
+        """Кэширование результата."""
         cache_key = self._generate_cache_key()
         self._cache[cache_key] = data
 
     def _generate_cache_key(self) -> str:
-        """Генерация ключа кэша"""
+        """Генерация ключа кэша."""
         query_hash = hashlib.sha256(
             f"{self.config.query}{self.config.where_clause}{self.config.row_limit}".encode()
         ).hexdigest()
         return f"sql_extract_{query_hash}"
 
     async def _cleanup(self) -> None:
-        """Очистка ресурсов"""
+        """Очистка ресурсов."""
         if self._engine:
             await self._engine.dispose()
             logger.debug("SQLAlchemy движок закрыт")

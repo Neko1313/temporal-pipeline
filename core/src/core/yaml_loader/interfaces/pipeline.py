@@ -31,7 +31,7 @@ class PipelineConfig(BaseModel):
     def validate_stage_dependencies(
         cls, v: dict[str, StageConfig]
     ) -> dict[str, StageConfig]:
-        """Проверяет зависимости между стадиями"""
+        """Проверяет зависимости между стадиями."""
         stage_names = set(v.keys())
 
         for _stage_name, stage_config in v.items():
@@ -47,7 +47,7 @@ class PipelineConfig(BaseModel):
         return v
 
     def get_effective_resilience(self, stage_name: str) -> ResilienceConfig:
-        """Получает эффективную конфигурацию resilience для стадии"""
+        """Получает эффективную конфигурацию resilience для стадии."""
         stage = self.stages.get(stage_name)
         if not stage:
             return self.default_resilience

@@ -1,6 +1,4 @@
-"""
-Обновленные Temporal Activities с правильной инициализацией конфигурации
-"""
+"""Обновленные Temporal Activities с правильной инициализацией конфигурации."""
 
 import asyncio
 import logging
@@ -249,7 +247,7 @@ async def execute_stage_activity(  # noqa: PLR0913, PLR0915, PLR0912
 async def validate_pipeline_activity(
     pipeline_config: dict[str, Any],
 ) -> dict[str, Any]:
-    """Activity для валидации конфигурации pipeline"""
+    """Activity для валидации конфигурации pipeline."""
     activity_logger.info("Validating pipeline configuration")
 
     try:
@@ -311,7 +309,7 @@ async def cleanup_pipeline_data_activity(
     pipeline_name: str,
     cleanup_config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Activity для очистки данных после выполнения pipeline"""
+    """Activity для очистки данных после выполнения pipeline."""
     activity_logger.info(f"Cleaning up pipeline data for run_id: {run_id}")
 
     try:
@@ -351,7 +349,7 @@ async def cleanup_pipeline_data_activity(
 
 
 def _deserialize_input_data(data: dict[str, Any]) -> Any:  # noqa: PLR0911
-    """Десериализует входные данные из metadata предыдущих стадий"""
+    """Десериализует входные данные из metadata предыдущих стадий."""
     if "polars_data" in data:
         try:
             import polars as pl  # noqa: PLC0415
@@ -378,7 +376,7 @@ def _deserialize_input_data(data: dict[str, Any]) -> Any:  # noqa: PLR0911
 
 
 def _serialize_result_data(data: Any) -> dict[str, Any]:
-    """Сериализует результат для передачи между стадиями"""
+    """Сериализует результат для передачи между стадиями."""
     try:
         import polars as pl  # noqa: PLC0415
 
@@ -399,7 +397,7 @@ def _serialize_result_data(data: Any) -> dict[str, Any]:
 
 
 def _count_records_from_result(result: Result) -> int:
-    """Подсчитывает количество обработанных записей из результата"""
+    """Подсчитывает количество обработанных записей из результата."""
     if result.response is None:
         return 0
 
@@ -427,7 +425,7 @@ async def _execute_component_with_resilience(
     stage_name: str,
     resilience_config: dict[str, Any] | None,
 ) -> Result:
-    """Выполняет компонент с учетом resilience настроек"""
+    """Выполняет компонент с учетом resilience настроек."""
     if not resilience_config:
         response = await component.process()
         if response is None:

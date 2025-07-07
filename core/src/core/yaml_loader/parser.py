@@ -12,8 +12,7 @@ ENV_VAR_PATTERN = re.compile(r"\$\{([^}]+)\}")
 
 class YAMLConfigParser:
     def parse_file(self, config_path: Path) -> PipelineConfig:
-        """Парсит YAML файл и возвращает валидированную конфигурацию"""
-
+        """Парсит YAML файл и возвращает валидированную конфигурацию."""
         if not config_path.exists():
             msg = f"Config file not found: {config_path}"
             raise FileNotFoundError(msg)
@@ -51,7 +50,7 @@ class YAMLConfigParser:
 
     @staticmethod
     def _substitute_string_env_vars(text: str) -> str:
-        """Подставляет environment variables в строке"""
+        """Подставляет environment variables в строке."""
 
         def replace_var(match: re.Match[str]) -> str:
             var_name = match.group(1)
@@ -70,7 +69,7 @@ class YAMLConfigParser:
 
     @staticmethod
     def _validate_env_vars(config: PipelineConfig) -> None:
-        """Проверяет наличие всех требуемых environment variables"""
+        """Проверяет наличие всех требуемых environment variables."""
         missing_vars = []
 
         for var_name in config.required_env_vars:
