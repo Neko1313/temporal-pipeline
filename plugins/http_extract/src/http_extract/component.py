@@ -23,7 +23,6 @@ logger = logging.getLogger(__name__)
 
 
 class HTTPExtract(BaseProcessClass[HTTPExtractConfig]):
-
     def __init__(self, config: HTTPExtractConfig) -> None:
         super().__init__(config)
         self._session = None

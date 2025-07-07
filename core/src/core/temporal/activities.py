@@ -1,5 +1,5 @@
 """
-Обновленные Temporal Activities с универсальной архитектурой BaseProcessClass
+Обновленные Temporal Activities с правильной инициализацией конфигурации
 """
 
 import asyncio
@@ -17,15 +17,14 @@ from core.component import (
     Result,
 )
 from core.temporal.interfaces import StageExecutionResult
-from core.yaml_loader.interfaces import StageConfig
 
 activity_logger = logging.getLogger("temporal_activity")
 
 
 @activity.defn
-async def execute_stage_activity(  # noqa: PLR0913
+async def execute_stage_activity(  # noqa: PLR0913, PLR0915, PLR0912
     stage_name: str,
-    stage_config: StageConfig,
+    stage_config: dict[str, Any],
     run_id: str,
     pipeline_name: str,
     input_data: dict[str, Any] | None = None,
@@ -34,8 +33,8 @@ async def execute_stage_activity(  # noqa: PLR0913
     activity_logger.info(
         "Executing stage: %s (%s.%s)",
         stage_name,
-        stage_config.stage,
-        stage_config.component,
+        stage_config["stage"],
+        stage_config["component"],
     )
     start_time = time()
 
@@ -47,8 +46,8 @@ async def execute_stage_activity(  # noqa: PLR0913
         "max_attempts": resilience_config.get("max_attempts", 3)
         if resilience_config
         else 3,
-        "component_type": stage_config.stage,
-        "component_name": stage_config.component,
+        "component_type": stage_config["stage"],
+        "component_name": stage_config["component"],
     }
 
     try:
@@ -56,37 +55,82 @@ async def execute_stage_activity(  # noqa: PLR0913
         await registry.initialize()
 
         component_class = registry.get_plugin(
-            stage_config.stage, stage_config.component
+            stage_config["stage"], stage_config["component"]
         )
         if not component_class:
-            available = registry.list_plugins(stage_config.stage)
+            available = registry.list_plugins(stage_config["stage"])
             msg = (
-                f"Component '{stage_config.component}' "
-                f"of type '{stage_config.stage}' not found. "
-                f"Available: {available.get(stage_config.stage, [])}"
+                f"Component '{stage_config['component']}' "
+                f"of type '{stage_config['stage']}' not found. "
+                f"Available: {available.get(stage_config['stage'], [])}"
             )
             raise ValueError(msg)
 
-        config_data = (
-            stage_config.component_config.model_dump()
-            if stage_config.component_config
-            else {}
+        component_info = registry.get_plugin_info(
+            stage_config["stage"], stage_config["component"]
         )
 
-        config_data.update(
-            {
-                "run_id": run_id,
-                "pipeline_name": pipeline_name,
-                "stage_name": stage_name,
-                "attempt": attempt_number,
-            }
-        )
+        config_data = stage_config.get("component_config", {}).copy()
+
+        activity_logger.debug(f"Raw stage_config: {stage_config}")
+        activity_logger.debug(f"Extracted component_config: {config_data}")
+
+        metadata_fields = {
+            "run_id": run_id,
+            "pipeline_name": pipeline_name,
+            "stage_name": stage_name,
+            "attempt": attempt_number,
+        }
+
+        if component_info and component_info.config_class:
+            config_fields = component_info.config_class.model_fields.keys()
+            for field, value in metadata_fields.items():
+                if field in config_fields:
+                    config_data[field] = value
 
         if input_data:
             deserialized_input = _deserialize_input_data(input_data)
-            config_data["input_data"] = deserialized_input
+            activity_logger.debug(
+                "Deserialized input data: %s", type(deserialized_input)
+            )
 
-        component = component_class(ComponentConfig(**config_data))
+            if stage_config["stage"] == "transform":
+                config_data["_temporal_input_data"] = deserialized_input
+
+        if component_info and component_info.config_class:
+            try:
+                activity_logger.debug(
+                    "Creating config with class: %s",
+                    component_info.config_class.__name__,
+                )
+                activity_logger.debug(
+                    "Config data keys: %s", list(config_data.keys())
+                )
+                config_instance = component_info.config_class(**config_data)
+                activity_logger.debug("Successfully created config instance")
+            except Exception as ex:
+                activity_logger.error(
+                    "Failed to create %s: %s",
+                    component_info.config_class.__name__,
+                    ex,
+                )
+                activity_logger.error(f"Config data: {config_data}")
+                raise ex
+        else:
+            activity_logger.warning(
+                "No config class found, using ComponentConfig"
+            )
+            config_instance = ComponentConfig(**config_data)
+
+        component = component_class(config_instance)
+
+        if input_data and stage_config["stage"] == "transform":
+            deserialized_input = _deserialize_input_data(input_data)
+            # Устанавливаем атрибут напрямую в объект конфигурации
+            component.config._temporal_input_data = deserialized_input
+            activity_logger.debug(
+                f"Set temporal input data: {type(deserialized_input)}"
+            )
 
         result = await _execute_component_with_resilience(
             component, stage_name, resilience_config
@@ -105,8 +149,8 @@ async def execute_stage_activity(  # noqa: PLR0913
                     "attempt": attempt_number,
                 },
                 "component_info": {
-                    "type": stage_config.stage,
-                    "name": stage_config.component,
+                    "type": stage_config["stage"],
+                    "name": stage_config["component"],
                 },
                 "performance": {
                     "execution_time": execution_time,
@@ -151,8 +195,8 @@ async def execute_stage_activity(  # noqa: PLR0913
                     "attempt": attempt_number,
                 },
                 "component_info": {
-                    "type": stage_config.stage,
-                    "name": stage_config.component,
+                    "type": stage_config["stage"],
+                    "name": stage_config["component"],
                 },
             },
             resilience_info=resilience_info,
@@ -165,7 +209,7 @@ async def execute_stage_activity(  # noqa: PLR0913
 
         activity_logger.error(
             f"Stage {stage_name} "
-            f"({stage_config.stage}.{stage_config.component}) "
+            f"({stage_config['stage']}.{stage_config['component']}) "
             f"failed on attempt {attempt_number}: {error_msg}"
         )
 
@@ -192,30 +236,26 @@ async def execute_stage_activity(  # noqa: PLR0913
                     "attempt": attempt_number,
                 },
                 "component_info": {
-                    "type": stage_config.stage,
-                    "name": stage_config.component,
+                    "type": stage_config["stage"],
+                    "name": stage_config["component"],
                 },
             },
             resilience_info=resilience_info,
         )
 
 
+# Остальные функции остаются без изменений
 @activity.defn
 async def validate_pipeline_activity(
     pipeline_config: dict[str, Any],
 ) -> dict[str, Any]:
-    """
-    ОБНОВЛЕННАЯ УНИВЕРСАЛЬНАЯ activity для валидации конфигурации pipeline
-    """
+    """Activity для валидации конфигурации pipeline"""
     activity_logger.info("Validating pipeline configuration")
 
     try:
         from core.yaml_loader.interfaces import PipelineConfig  # noqa: PLC0415
 
-        # Валидируем структуру конфигурации
         config = PipelineConfig(**pipeline_config)
-
-        # ИЗМЕНЕНИЕ: Используем новый PluginRegistry
         registry = PluginRegistry()
         await registry.initialize()
 
@@ -235,12 +275,7 @@ async def validate_pipeline_activity(
                 )
                 continue
 
-            # Валидируем конфигурацию компонента
-            config_data = (
-                stage_config.component_config.model_dump()
-                if stage_config.component_config
-                else {}
-            )
+            config_data = {} or stage_config.component_config
             validation_result = await registry.validate_component_config(
                 stage_config.stage, stage_config.component, config_data
             )
@@ -276,9 +311,7 @@ async def cleanup_pipeline_data_activity(
     pipeline_name: str,
     cleanup_config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """
-    СОХРАНЯЕМ КАК ЕСТЬ - activity для очистки данных после выполнения pipeline
-    """
+    """Activity для очистки данных после выполнения pipeline"""
     activity_logger.info(f"Cleaning up pipeline data for run_id: {run_id}")
 
     try:
@@ -325,7 +358,6 @@ def _deserialize_input_data(data: dict[str, Any]) -> Any:  # noqa: PLR0911
 
             return pl.read_json(data["polars_data"])
         except ImportError:
-            # Fallback если polars недоступен
             pass
 
     if "dict_data" in data:
@@ -335,7 +367,6 @@ def _deserialize_input_data(data: dict[str, Any]) -> Any:  # noqa: PLR0911
     if "raw_data" in data:
         return data["raw_data"]
     if "records" in data:
-        # Поддержка старого формата
         try:
             import polars as pl  # noqa: PLC0415
 
@@ -349,7 +380,6 @@ def _deserialize_input_data(data: dict[str, Any]) -> Any:  # noqa: PLR0911
 def _serialize_result_data(data: Any) -> dict[str, Any]:
     """Сериализует результат для передачи между стадиями"""
     try:
-        # Lazy import polars для избежания проблем в temporal sandbox
         import polars as pl  # noqa: PLC0415
 
         if isinstance(data, pl.DataFrame):
@@ -425,7 +455,7 @@ async def _execute_component_with_resilience(
             )
         except TimeoutError as te:
             msg = f"Stage {stage_name} execution\
-            exceeded timeout of {execution_timeout} seconds"
+             exceeded timeout of {execution_timeout} seconds"
             raise TimeoutError(msg) from te
     else:
         return await execute_with_timeout()

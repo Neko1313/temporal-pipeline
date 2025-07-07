@@ -5,7 +5,6 @@ SQL Extract Plugin - Переписанная версия с использов
 
 import hashlib
 import logging
-from typing import Any
 from urllib.parse import urlparse
 
 import polars as pl
@@ -16,7 +15,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from core.component import BaseProcessClass, Result, Info
+from core.component import BaseProcessClass, Info, Result
 from sql_extract.config import SQLExtractConfig
 
 logger = logging.getLogger(__name__)

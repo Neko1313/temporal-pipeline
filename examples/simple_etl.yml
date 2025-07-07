@@ -16,7 +16,7 @@ stages:
     stage: extract
     component: http_extract
     component_config:
-      url: "https://adm-branch-feedback-classification.dns-shop.ru/negative/predict?text=dsadasda"
+      url: "https://jsonplaceholder.typicode.com/posts/1"
       method: "GET"
       response_format: "json"
       timeout: 30

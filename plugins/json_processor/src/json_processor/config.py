@@ -64,7 +64,9 @@ class JSONNormalizationConfig(BaseModel):
 class JSONTransformConfig(ComponentConfig):
     """Конфигурация JSON Transform компонента"""
 
-    input_data: dict[str, Any] = Field(default_factory=dict)
+    input_data: Any = Field(
+        default=None, description="Входные данные от предыдущих стадий"
+    )
 
     json_normalization: JSONNormalizationConfig | None = Field(
         default=None, description="Конфигурация нормализации JSON"

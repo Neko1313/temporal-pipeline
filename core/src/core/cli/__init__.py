@@ -118,8 +118,8 @@ async def _run_pipeline_async(
     verbose: bool,
 ) -> None:
     """Асинхронное выполнение пайплайна"""
-    from temporalio.contrib.pydantic import pydantic_data_converter
     from temporalio.client import Client
+    from temporalio.contrib.pydantic import pydantic_data_converter
 
     # Загружаем переменные окружения
     if env_file:
@@ -191,22 +191,24 @@ async def _run_pipeline_async(
             client = None
             try:
                 client = await Client.connect(
-                    temporal_host, namespace=namespace, data_converter=pydantic_data_converter
+                    temporal_host,
+                    namespace=namespace,
+                    data_converter=pydantic_data_converter,
                 )
                 progress.update(
                     task3, description="✅ Подключение установлено"
                 )
-            except Exception as e:
+            except Exception as ex:
                 progress.update(task3, description="❌ Ошибка подключения")
                 rprint(
-                    f"[red]❌ Не удалось подключиться к Temporal: {e}[/red]"
+                    f"[red]❌ Не удалось подключиться к Temporal: {ex}[/red]"
                 )
                 rprint(
                     f"[yellow]💡 Убедитесь что "
                     f"Temporal Server запущен "
                     f"на {temporal_host}[/yellow]"
                 )
-                raise typer.Exit(1)
+                raise typer.Exit(1) from ex
 
             # Запуск пайплайна
             task4 = progress.add_task("🚀 Запуск пайплайна...", total=None)
@@ -253,13 +255,13 @@ async def _run_pipeline_async(
                 rprint(f"[blue]🆔 Workflow ID: {handle.id}[/blue]")
                 rprint(f"[blue]🏃 Run ID: {actual_run_id}[/blue]")
 
-    except Exception as e:
-        rprint(f"[red]❌ Ошибка: {e}[/red]")
+    except Exception as ex:
+        rprint(f"[red]❌ Ошибка: {ex}[/red]")
         if verbose:
             import traceback
 
             rprint(f"[dim]{traceback.format_exc()}[/dim]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from ex
 
 
 @pipeline_app.command("validate")
@@ -385,9 +387,9 @@ async def _validate_config_async(
             rprint("\n❌ [bold red]Найдены ошибки в конфигурации![/bold red]")
             raise typer.Exit(1)
 
-    except Exception as e:
-        rprint(f"[red]❌ Ошибка валидации: {e}[/red]")
-        raise typer.Exit(1)
+    except Exception as ex:
+        rprint(f"[red]❌ Ошибка валидации: {ex}[/red]")
+        raise typer.Exit(1) from ex
 
 
 @plugin_app.command("list")
@@ -971,12 +973,12 @@ def _create_pipeline_template(
             try:
                 if shutil.which(editor):
                     subprocess.run([editor, str(output_path)], check=True)
-            except Exception as e:
-                rprint(f"[yellow]Не удалось открыть редактор: {e}[/yellow]")
+            except Exception as ex:
+                rprint(f"[yellow]Не удалось открыть редактор: {ex}[/yellow]")
 
-    except Exception as e:
-        rprint(f"[red]❌ Ошибка создания шаблона: {e}[/red]")
-        raise typer.Exit(1)
+    except Exception as ex:
+        rprint(f"[red]❌ Ошибка создания шаблона: {ex}[/red]")
+        raise typer.Exit(1) from ex
 
 
 async def _start_worker_async(
@@ -992,10 +994,12 @@ async def _start_worker_async(
         rprint(f"📍 Namespace: [bold yellow]{namespace}[/bold yellow]")
         rprint(f"📋 Task Queue: [bold green]{task_queue}[/bold green]")
 
-        from temporalio.contrib.pydantic import pydantic_data_converter
         from temporalio.client import Client
+        from temporalio.contrib.pydantic import pydantic_data_converter
 
-        client = await Client.connect(host, namespace=namespace, data_converter=pydantic_data_converter)
+        client = await Client.connect(
+            host, namespace=namespace, data_converter=pydantic_data_converter
+        )
 
         rprint("✅ [bold green]Подключение к Temporal успешно![/bold green]")
 
@@ -1011,7 +1015,7 @@ async def _start_worker_async(
             rprint("✅ Все компоненты импортированы")
         except ImportError as ex:
             rprint(f"[red]❌ Ошибка импорта: {ex}[/red]")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from ex
 
         # Создаем и настраиваем Worker
         from temporalio.worker import Worker
@@ -1062,7 +1066,7 @@ async def _start_worker_async(
         import traceback
 
         rprint(f"[dim]{traceback.format_exc()}[/dim]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from ex
 
 
 if __name__ == "__main__":
