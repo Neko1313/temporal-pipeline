@@ -26,17 +26,10 @@ stages:
     component: json_transform
     depends_on: [extract_data]
     component_config:
-      column_operations:
-        "full_name": "name + ' (' + username + ')'"
-        "domain": "email.split('@')[1] if '@' in email else 'unknown'"
-
-      filter_conditions:
-        - "website.is_not_null()"
-
-      sort_columns: ["name"]
-      sort_descending: false
+      add_metadata: true
+      deduplicate: false
 
 required_env_vars: []
 
 max_parallel_stages: 2
-default_timeout: 1
+default_timeout: 300
