@@ -13,16 +13,19 @@ class BaseProcess(Protocol):
 class BaseProcessClass:
     config: ComponentConfig
 
-    async def process(self) -> Result:
+    def __init__(self, config: ComponentConfig) -> None:
+        self.config = config
+
+    async def process(self) -> Result | None:
         raise NotImplementedError()
 
-    @property
-    def info(self) -> Info:
+    @classmethod
+    def info(cls) -> Info:
         return Info(
             name="base",
             version="0.1.0",
             description=None,
-            type_class=self.__class__,
+            type_class=cls.__class__,
             type_module="core",
             config_class=ComponentConfig,
         )

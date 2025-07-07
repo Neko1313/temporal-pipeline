@@ -39,15 +39,13 @@ class PluginRegistry:
         try:
             for entry_point in group_entries:
                 plugin_class: type[BaseProcessClass] = entry_point.load()
-                object_plugin_class = plugin_class()
+                plugin_class_info = plugin_class.info()
 
-                if group_name != object_plugin_class.info.type_module:
+                if group_name != plugin_class_info.type_module:
                     msg = "Plugin info error"
                     raise Exception(msg)
 
-                self._plugins[group_name][entry_point.name] = (
-                    object_plugin_class.info
-                )
+                self._plugins[group_name][entry_point.name] = plugin_class_info
                 self._plugin_classes[group_name][entry_point.name] = (
                     plugin_class  # ДОБАВЛЕНО
                 )
@@ -134,17 +132,12 @@ class PluginRegistry:
             }
 
         try:
-            # Создаем экземпляр для получения info
-            plugin_instance = plugin_class()
-
-            # Пытаемся создать конфигурацию
-            config = ComponentConfig(**config_data)
-            plugin_instance.config = config
+            plugin_instance = plugin_class(ComponentConfig(**config_data))
 
             return {
                 "valid": True,
                 "errors": [],
-                "component_info": plugin_instance.info.model_dump()
+                "component_info": plugin_instance.info().model_dump()
                 if hasattr(plugin_instance.info, "model_dump")
                 else None,
             }
@@ -183,9 +176,7 @@ class PluginRegistry:
             msg = "Plugin class must inherit from BaseProcessClass"
             raise ValueError(msg)
 
-        # Создаем экземпляр для получения info
-        plugin_instance = plugin_class()
-        plugin_info = plugin_instance.info
+        plugin_info = plugin_class.info()
 
         self._plugins[plugin_type][plugin_name] = plugin_info
         self._plugin_classes[plugin_type][plugin_name] = plugin_class

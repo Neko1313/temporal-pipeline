@@ -59,6 +59,9 @@ class SQLExtractConfig(ComponentConfig):
     column_mapping: dict[str, str] | None = Field(
         default=None, description="Переименование колонок"
     )
+    type_mapping: dict[str, str] | None = Field(
+        default=None, description="Переопределение типов"
+    )
     data_types: dict[str, str] | None = Field(
         default=None, description="Приведение типов данных"
     )

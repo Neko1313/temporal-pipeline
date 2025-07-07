@@ -1,5 +1,5 @@
 import re
-from typing import Literal
+from typing import Literal, Self
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -25,7 +25,7 @@ class ScheduleConfig(BaseModel):
     notes: str = ""
 
     @model_validator(mode="after")
-    def validate_schedule_config(self) -> "ScheduleConfig":
+    def validate_schedule_config(self) -> Self:
         if self.cron and self.interval:
             msg = "cron and interval cannot both be set"
             raise ValueError(msg)
@@ -37,3 +37,5 @@ class ScheduleConfig(BaseModel):
         if self.interval and not re.match(PATTER_INTERVAL, self.interval):
             msg = f"don't pattern {PATTER_INTERVAL}"
             raise ValueError(msg)
+
+        return self

@@ -7,6 +7,6 @@ class Info(BaseModel):
     name: str
     version: str | None = None
     description: str | None = None
-    type_class: type[object]
+    type_class: object
     type_module: Literal["extract", "transform", "load", "core"]
     config_class: type[BaseModel]

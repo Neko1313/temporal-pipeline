@@ -6,31 +6,17 @@ JSON Transform Plugin - Трансформация данных с поддер�
 import ast
 import json
 import logging
-from datetime import UTC, datetime
 from typing import Any
 
 import polars as pl
 
 from core.component import BaseProcessClass, Info, Result
-from json_processor.config import JSONTransformConfig
+from json_processor.config import AggregationConfig, JSONTransformConfig
 
 logger = logging.getLogger(__name__)
 
 
 class JSONTransform(BaseProcessClass):
-    """
-    JSON Transform компонент для трансформации данных
-
-    Поддерживаемые операции:
-    - Нормализация вложенных JSON структур
-    - Агрегации и группировки
-    - Соединения с данными из зависимостей
-    - Фильтрация и сортировка
-    - Обработка пропущенных значений
-    - Создание новых колонок
-    - Семплирование данных
-    """
-
     config: JSONTransformConfig
 
     async def process(self) -> Result:
@@ -62,7 +48,6 @@ class JSONTransform(BaseProcessClass):
             data = await self._apply_null_handling(data)
             data = await self._apply_sorting(data)
             data = await self._apply_sampling(data)
-            data = await self._add_metadata_columns(data)
 
             final_rows = len(data)
             logger.info(
@@ -301,10 +286,12 @@ class JSONTransform(BaseProcessClass):
 
     async def _perform_aggregation(self, data: pl.DataFrame) -> pl.DataFrame:
         """Выполнение агрегации"""
+        if self.config.aggregation is None:
+            return data
         agg_config = self.config.aggregation
 
         # Группировка
-        group_by_columns = agg_config.get("group_by", [])
+        group_by_columns = agg_config.group_by
         if group_by_columns:
             data = await self._apply_groupby_aggregation(data, agg_config)
         else:
@@ -313,11 +300,11 @@ class JSONTransform(BaseProcessClass):
         return data
 
     async def _apply_groupby_aggregation(
-        self, data: pl.DataFrame, agg_config: dict[str, Any]
+        self, data: pl.DataFrame, agg_config: AggregationConfig
     ) -> pl.DataFrame:
         """Применение группировки с агрегацией"""
-        group_by_columns = agg_config["group_by"]
-        aggregations = agg_config.get("aggregations", {})
+        group_by_columns = agg_config.group_by
+        aggregations = agg_config.aggregations
 
         # Проверяем существование колонок
         existing_group_columns = [
@@ -338,10 +325,10 @@ class JSONTransform(BaseProcessClass):
         return data
 
     async def _apply_simple_aggregation(
-        self, data: pl.DataFrame, agg_config: dict[str, Any]
+        self, data: pl.DataFrame, agg_config: AggregationConfig
     ) -> pl.DataFrame:
         """Применение простой агрегации без группировки"""
-        aggregations = agg_config.get("aggregations", {})
+        aggregations = agg_config.aggregations
 
         agg_expressions = self._build_aggregation_expressions(
             aggregations, data
@@ -499,46 +486,14 @@ class JSONTransform(BaseProcessClass):
 
         return data
 
-    async def _add_metadata_columns(self, data: pl.DataFrame) -> pl.DataFrame:
-        """Добавление метаданных"""
-        if not self.config.add_metadata:
-            return data
-
-        try:
-            # Добавляем метаданные обработки
-            data = data.with_columns(
-                [
-                    pl.lit(datetime.now(tz=UTC).isoformat()).alias(
-                        "__processed_at"
-                    ),
-                    pl.lit(
-                        self.config.run_id
-                        if hasattr(self.config, "run_id")
-                        else "unknown"
-                    ).alias("__run_id"),
-                    pl.lit(
-                        self.config.stage_name
-                        if hasattr(self.config, "stage_name")
-                        else "transform"
-                    ).alias("__stage_name"),
-                ]
-            )
-
-            logger.debug("Added metadata columns")
-
-        except Exception as e:
-            logger.warning(f"Failed to add metadata: {e}")
-
-        return data
-
-    @property
-    def info(self) -> Info:
+    @classmethod
+    def info(cls) -> Info:
         return Info(
             name="JSONTransform",
             version="1.0.0",
             description="Мощный компонент\
             трансформации данных с поддержкой JSON операций",
-            type_class=self.__class__,
+            type_class=cls.__class__,
             type_module="transform",
             config_class=JSONTransformConfig,
         )

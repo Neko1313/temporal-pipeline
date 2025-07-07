@@ -8,7 +8,6 @@ requires-python = ">=3.13"
 # Dependencies
 dependencies = [
     "core",
-    "csv_processor",
     "json_processor",
     "sql_extract",
     "http_extract",
@@ -18,7 +17,6 @@ dependencies = [
 members = [
     "core",
     "plugins/sql_extract",
-    "plugins/csv_processor",
     "plugins/json_processor",
     "plugins/http_extract",
 ]
@@ -26,7 +24,6 @@ members = [
 [tool.uv.sources]
 core = { workspace = true }
 sql_extract = { workspace = true }
-csv_processor = { workspace = true }
 json_processor = { workspace = true }
 http_extract = { workspace = true }
 

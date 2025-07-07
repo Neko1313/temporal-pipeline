@@ -32,7 +32,7 @@ class ScheduledPipelineWorkflow:
         ):
             pipeline_config.execution_metadata = {}
 
-        pipeline_config["execution_metadata"].update(
+        pipeline_config.execution_metadata.update(
             {
                 "scheduled": True,
                 "schedule_id": schedule_id,

@@ -25,8 +25,8 @@ logger = logging.getLogger(__name__)
 class SQLExtract(BaseProcessClass):
     config: SQLExtractConfig
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, config: SQLExtractConfig) -> None:
+        super().__init__(config)
         self._engine: AsyncEngine | None = None
         self._session_factory: async_sessionmaker | None = None
         self._cache: dict[str, pl.DataFrame] = {}
@@ -191,7 +191,6 @@ class SQLExtract(BaseProcessClass):
 
     def _postprocess_data(self, data: pl.DataFrame) -> pl.DataFrame:
         """Постобработка данных"""
-        # Переименование колонок
         if self.config.column_mapping:
             data = data.rename(self.config.column_mapping)
 

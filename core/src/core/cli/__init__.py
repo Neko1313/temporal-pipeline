@@ -229,7 +229,9 @@ async def _run_pipeline_async(
                 rprint(f"[dim]Run ID: {actual_run_id}[/dim]")
 
             if wait:
-                # Ждем завершения
+                if client is None:
+                    raise typer.Exit(1)
+
                 result = await client.execute_workflow(
                     DataPipelineWorkflow.run,
                     args=[pipeline_config, actual_run_id],
@@ -241,7 +243,9 @@ async def _run_pipeline_async(
                 _display_execution_results(result)
 
             else:
-                # Запускаем асинхронно
+                if client is None:
+                    raise typer.Exit(1)
+
                 handle = await client.start_workflow(
                     DataPipelineWorkflow.run,
                     args=[pipeline_config, actual_run_id],
@@ -664,12 +668,19 @@ def _display_execution_results(result: PipelineExecutionResult) -> None:
         results_table.add_row(
             "Время выполнения", f"{result.total_execution_time:.2f}с"
         )
-        results_table.add_row(
-            "Успешных стадий",
-            str(
-                len([s for s in result.stage_results if s.status == "success"])
-            ),
-        )
+        if result.stage_results:
+            results_table.add_row(
+                "Успешных стадий",
+                str(
+                    len(
+                        [
+                            s
+                            for s in result.stage_results
+                            if s.status == "success"
+                        ]
+                    )
+                ),
+            )
         results_table.add_row("Run ID", result.run_id)
 
         console.print(results_table)

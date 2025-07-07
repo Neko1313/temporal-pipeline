@@ -7,6 +7,7 @@ import logging
 from time import time
 from typing import Any
 
+from pydantic import BaseModel
 from temporalio import activity
 
 from core.component import (
@@ -51,11 +52,9 @@ async def execute_stage_activity(  # noqa: PLR0913
     }
 
     try:
-        # ИЗМЕНЕНИЕ: Используем новый PluginRegistry
         registry = PluginRegistry()
         await registry.initialize()
 
-        # ИЗМЕНЕНИЕ: Универсальное получение компонента (без group_map)
         component_class = registry.get_plugin(
             stage_config.stage, stage_config.component
         )
@@ -67,8 +66,6 @@ async def execute_stage_activity(  # noqa: PLR0913
                 f"Available: {available.get(stage_config.stage, [])}"
             )
             raise ValueError(msg)
-
-        component = component_class()
 
         config_data = (
             stage_config.component_config.model_dump()
@@ -89,7 +86,7 @@ async def execute_stage_activity(  # noqa: PLR0913
             deserialized_input = _deserialize_input_data(input_data)
             config_data["input_data"] = deserialized_input
 
-        component.config = ComponentConfig(**config_data)
+        component = component_class(ComponentConfig(**config_data))
 
         result = await _execute_component_with_resilience(
             component, stage_name, resilience_config
@@ -366,7 +363,7 @@ def _serialize_result_data(data: Any) -> dict[str, Any]:
 
     if isinstance(data, dict):
         return {"dict_data": data}
-    if hasattr(data, "model_dump"):
+    if isinstance(data, BaseModel):
         return {"pydantic_data": data.model_dump()}
     return {"raw_data": str(data)}
 
@@ -402,12 +399,24 @@ async def _execute_component_with_resilience(
 ) -> Result:
     """Выполняет компонент с учетом resilience настроек"""
     if not resilience_config:
-        return await component.process()
+        response = await component.process()
+        if response is None:
+            return Result(
+                response=None,
+                status="success",
+            )
+        return response
 
     execution_timeout = resilience_config.get("execution_timeout")
 
     async def execute_with_timeout() -> Result:
-        return await component.process()
+        response_execute_with_timeout = await component.process()
+        if response_execute_with_timeout is None:
+            return Result(
+                response=None,
+                status="success",
+            )
+        return response_execute_with_timeout
 
     if execution_timeout:
         try:

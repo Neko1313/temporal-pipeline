@@ -12,7 +12,7 @@ class PipelineConfig(BaseModel):
     version: str = Field(default="1.0.0", pattern=r"^\d+\.\d+\.\d+$")
     stages: dict[str, StageConfig] = Field(min_length=1)
     schedule: ScheduleConfig = Field(default_factory=ScheduleConfig)
-    execution_metadata: dict[str, str] | None = Field(None)
+    execution_metadata: dict[str, str | bool] = Field(default_factory=dict)
 
     # Global settings
     max_parallel_stages: int = Field(default=3, ge=1, le=10)

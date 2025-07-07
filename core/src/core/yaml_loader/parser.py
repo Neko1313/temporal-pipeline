@@ -1,6 +1,7 @@
 import os
 import re
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -39,7 +40,7 @@ class YAMLConfigParser:
             msg = f"Error parsing config {config_path}: {ex}"
             raise ValueError(msg) from ex
 
-    def _substitute_env_vars(self, obj: any) -> any:
+    def _substitute_env_vars(self, obj: Any) -> Any:
         if isinstance(obj, dict):
             return {k: self._substitute_env_vars(v) for k, v in obj.items()}
         if isinstance(obj, list):

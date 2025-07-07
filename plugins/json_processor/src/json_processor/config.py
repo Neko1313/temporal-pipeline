@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -8,7 +8,9 @@ from core.component import ComponentConfig
 class AggregationConfig(BaseModel):
     """Конфигурация агрегации"""
 
-    group_by: list[str] = Field(..., description="Колонки для группировки")
+    group_by: list[str] = Field(
+        default_factory=list, description="Колонки для группировки"
+    )
     aggregations: dict[
         str,
         Literal[
@@ -61,6 +63,8 @@ class JSONNormalizationConfig(BaseModel):
 
 class JSONTransformConfig(ComponentConfig):
     """Конфигурация JSON Transform компонента"""
+
+    input_data: dict[str, Any] = Field(default_factory=dict)
 
     json_normalization: JSONNormalizationConfig | None = Field(
         default=None, description="Конфигурация нормализации JSON"
