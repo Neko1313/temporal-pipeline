@@ -1,9 +1,15 @@
 from importlib.metadata import entry_points
+from unittest.mock import Mock
 
 import pytest
 
-from core.component import PluginRegistry
+from core.component import PluginRegistry, BaseProcessClass, ComponentConfig, Info
 
+
+@pytest.fixture
+def empty_registry() -> PluginRegistry:
+    """Создает пустой реестр без инициализации"""
+    return PluginRegistry()
 
 @pytest.fixture
 async def base_registry() -> PluginRegistry:
