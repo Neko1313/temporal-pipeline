@@ -1,0 +1,137 @@
+version: 1
+project_name: "temporal-pipeline"
+description: "ETL framework with Temporal.io and plugin architecture"
+
+languages:
+  - python
+
+rules:
+  security:
+    enabled: true
+    severity: high
+    checks:
+      - sql_injection
+      - hardcoded_secrets
+      - insecure_dependencies
+      - unsafe_yaml_load
+
+  code_quality:
+    enabled: true
+    severity: medium
+    check_complexity: true
+    check_duplication: true
+    max_complexity: 10
+    min_coverage: 80
+
+  performance:
+    enabled: true
+    severity: medium
+    memory_checks: true
+    async_checks: true
+
+  style:
+    enabled: true
+    severity: low
+    enforce_conventions: true
+
+exclude:
+  - "uv.lock"
+  - "**/__pycache__/**"
+  - "**/.*"
+
+  - "**/tests/**"
+  - "**/test_*.py"
+
+  - ".venv/**"
+  - "venv/**"
+  - "env/**"
+
+  - "docs/**"
+  - "*.md"
+
+  - "*.yml"
+  - "*.yaml"
+  - "*.toml"
+  - "*.ini"
+
+python:
+  version: "3.12"
+
+  checks:
+    - import_order
+    - docstring_coverage
+    - type_hints
+    - exception_handling
+    - async_best_practices
+
+  tools:
+    ruff: true
+    pyright: true
+    pytest: true
+
+pull_request:
+  auto_comment: true
+  block_merge_on_issues: false
+  severity_threshold: high
+
+  comment_new_issues_only: true
+
+  group_comments: true
+
+integrations:
+  ruff:
+    enabled: true
+    config_file: "pyproject.toml"
+
+  pyright:
+    enabled: true
+    config_file: "pyproject.toml"
+
+  pytest:
+    enabled: true
+    config_file: "pyproject.toml"
+    coverage_threshold: 10
+
+temporal:
+  workflow_checks:
+    - deterministic_code
+    - activity_timeouts
+    - workflow_timeouts
+    - retry_policies
+
+  activity_checks:
+    - async_activities
+    - heartbeat_usage
+    - proper_serialization
+
+etl_pipeline:
+  config_validation:
+    - yaml_schema_validation
+    - env_var_usage
+    - required_fields
+
+  data_processing:
+    - memory_efficiency
+    - batch_processing
+    - error_handling
+    - data_validation
+
+notifications:
+  slack:
+    enabled: false
+
+  email:
+    enabled: false
+
+
+
+performance:
+  timeout: 600
+
+  parallel_analysis: true
+  max_concurrent_jobs: 2
+
+experimental:
+  ai_suggestions: true
+  auto_fix: false
+  architecture_analysis: true
