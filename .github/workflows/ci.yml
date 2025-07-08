@@ -10,78 +10,37 @@ jobs:
   lint:
     name: 🔍 Lint Code
     runs-on: ubuntu-latest
-    timeout-minutes: 10
 
     steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: 🐍 Install Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
 
-      - name: 📦 Install uv
-        uses: astral-sh/setup-uv@v4
-        with:
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
-
-      - name: 🔧 Install dep
-        run: uv sync --all-extras --dev
+      - name: Install the project
+        run: uv sync --locked --all-extras --dev
 
       - name: 🔍 Check lint
-        run: |
-          uv run ruff check --fix core plugins
+        run: uv run ruff check --fix core plugins
 
       - name: 📋 Check type
-        run: |
-          echo "🔍 Запуск проверки типов..."
-          uv run pyright core plugins
-
-#      - name: 📝 Check dockstring
-#        run: |
-#          uv run pydocstyle core plugins
+        run: uv run pyright core plugins
 
   test:
     name: 🧪 Test
     runs-on: ubuntu-latest
-    timeout-minutes: 15
     needs: lint
 
-    strategy:
-      matrix:
-        python-version: ["3.13"]
-
     steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: 🐍 Install Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
 
-      - name: 📦 Install uv
-        uses: astral-sh/setup-uv@v4
-        with:
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
+      - name: Install the project
+        run: uv sync --locked --all-extras --dev
 
-      - name: 🔧 Install dep
-        run: uv sync --all-extras --dev
-
-      - name: 🧪 Run test
+      - name: 🧪 Run test Core
         run: |
-          echo "🧪 Run test in core dir..."
           cd core
           uv run pytest
-
-      - name: 📊 Load coverage в Codecov
-        uses: codecov/codecov-action@v4
-        if: success()
-        with:
-          file: ./core/coverage.xml
-          flags: unittests
-          name: codecov-umbrella
-          fail_ci_if_error: false

@@ -1,6 +1,4 @@
-import logging
 
-from tests.base import TemporalContainer
 
 
 # def test_command(temporal_container_service: TemporalContainer) -> None:
