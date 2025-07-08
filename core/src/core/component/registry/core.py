@@ -59,7 +59,7 @@ class PluginRegistry:
         return loaded_count
 
     def get_plugin(
-        self, plugin_type: str, plugin_name: str
+        self, plugin_type: str | None, plugin_name: str | None
     ) -> type[BaseProcessClass] | None:
         """
         Получает класс плагина по типу и имени.
@@ -72,10 +72,13 @@ class PluginRegistry:
             Класс плагина или None если не найден
 
         """
+        if plugin_type is None or plugin_name is None:
+            return None
+
         return self._plugin_classes.get(plugin_type, {}).get(plugin_name)
 
     def get_plugin_info(
-        self, plugin_type: str, plugin_name: str
+        self, plugin_type: str | None, plugin_name: str | None
     ) -> Info | None:
         """
         Получает информацию о плагине.
@@ -88,6 +91,9 @@ class PluginRegistry:
             Информация о плагине или None если не найден
 
         """
+        if plugin_type is None or plugin_name is None:
+            return None
+
         return self._plugins.get(plugin_type, {}).get(plugin_name)
 
     def list_plugins(
@@ -114,7 +120,10 @@ class PluginRegistry:
         }
 
     async def validate_component_config(
-        self, plugin_type: str, plugin_name: str, config_data: dict[str, Any]
+        self,
+        plugin_type: str | None,
+        plugin_name: str | None,
+        config_data: dict[str, Any],
     ) -> dict[str, Any]:
         """
         Валидирует конфигурацию компонента.
