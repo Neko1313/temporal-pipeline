@@ -4,7 +4,7 @@ import typer
 from rich import print as rprint
 from rich.console import Console
 
-from core.cli.command import pipeline_app, plugin_app, worker_app
+from cli.command import pipeline_app, plugin_app, worker_app
 
 console = Console()
 app = typer.Typer(

@@ -5,7 +5,7 @@ from typing import Annotated
 from rich import print as rprint
 from typer import Exit, Option, Typer
 
-from core.cli.command.worker.service import start_worker_async
+from cli.command.worker.service import start_worker_async
 
 worker_app = Typer(help="👷 Managing Temporal Workers")
 

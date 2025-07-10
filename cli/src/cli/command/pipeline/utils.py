@@ -8,7 +8,7 @@ from temporalio.client import Client
 from temporalio.contrib.pydantic import pydantic_data_converter
 from typer import Exit
 
-from core.cli.command.pipeline.const import MESSAGE_INFO_PIPELINE
+from cli.command.pipeline.const import MESSAGE_INFO_PIPELINE
 from core.component import PluginRegistry
 from core.yaml_loader.interfaces import PipelineConfig
 

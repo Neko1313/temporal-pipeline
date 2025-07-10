@@ -5,7 +5,7 @@ from temporalio.client import Client
 from temporalio.contrib.pydantic import pydantic_data_converter
 from temporalio.worker import Worker
 
-from core.cli.command.worker.const import WORKER_INFO
+from cli.command.worker.const import WORKER_INFO
 from core.component import PluginRegistry
 from core.temporal.activities import (
     cleanup_pipeline_data_activity,
@@ -40,7 +40,7 @@ async def start_worker_async(
 
     rprint("📦 Import workflow и activities...")
 
-    rprint("⚙️ Создание Worker...")
+    rprint("⚙️ Creating Worker...")
 
     worker = Worker(
         client,

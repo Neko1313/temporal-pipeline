@@ -3,8 +3,8 @@ from typing import Annotated
 
 from typer import Option, Typer
 
-from core.cli.command.plugin.service import list_plugins_async
-from core.cli.command.plugin.type import OutputType
+from cli.command.plugin.service import list_plugins_async
+from cli.command.plugin.type import OutputType
 
 plugin_app = Typer(help="🔌 Plugin management")
 

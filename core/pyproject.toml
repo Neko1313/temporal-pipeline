@@ -12,18 +12,11 @@ dependencies = [
     "pydantic>=2.11.7",
     "pyyaml>=6.0.2",
     "temporalio>=1.13.0",
-    "typer>=0.16.0",
 ]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-
-# CLI Interface
-[project.scripts]
-temporal-pipeline = "core.cli:app"
-tpd = "core.cli:app"
-pipeline = "core.cli:app"
 
 # Tests settings
 [tool.pytest.ini_options]

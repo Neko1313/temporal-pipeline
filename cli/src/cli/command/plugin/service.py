@@ -6,7 +6,7 @@ from rich.table import Table
 from rich.tree import Tree
 from typer import Exit
 
-from core.cli.command.plugin.type import OutputType
+from cli.command.plugin.type import OutputType
 from core.component import Info, PluginRegistry
 
 console = Console()

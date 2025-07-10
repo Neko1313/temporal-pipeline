@@ -4,6 +4,7 @@ requires-python = ">=3.12"
 
 [manifest]
 members = [
+    "cli",
     "core",
     "http-extract",
     "json-processor",
@@ -216,6 +217,21 @@ wheels = [
 ]
 
 [[package]]
+name = "cli"
+version = "0.1.0"
+source = { editable = "cli" }
+dependencies = [
+    { name = "core" },
+    { name = "typer" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "core", editable = "core" },
+    { name = "typer", specifier = ">=0.16.0" },
+]
+
+[[package]]
 name = "click"
 version = "8.2.1"
 source = { registry = "https://pypi.org/simple" }
@@ -245,7 +261,6 @@ dependencies = [
     { name = "pydantic" },
     { name = "pyyaml" },
     { name = "temporalio" },
-    { name = "typer" },
 ]
 
 [package.metadata]
@@ -254,7 +269,6 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.11.7" },
     { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "temporalio", specifier = ">=1.13.0" },
-    { name = "typer", specifier = ">=0.16.0" },
 ]
 
 [[package]]
@@ -1085,6 +1099,7 @@ name = "temporal-pipeline"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "cli" },
     { name = "core" },
     { name = "http-extract" },
     { name = "json-processor" },
@@ -1106,6 +1121,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "cli", editable = "cli" },
     { name = "core", editable = "core" },
     { name = "http-extract", editable = "plugins/http_extract" },
     { name = "json-processor", editable = "plugins/json_processor" },

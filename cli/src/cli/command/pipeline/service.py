@@ -5,7 +5,7 @@ from uuid import uuid4
 from rich import print as rprint
 from rich.console import Console
 
-from core.cli.command.pipeline.utils import (
+from cli.command.pipeline.utils import (
     display_pipeline_info,
     get_temporal_client,
     load_env_file,

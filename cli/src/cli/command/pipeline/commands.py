@@ -6,7 +6,7 @@ from typing import Annotated
 from rich import print as rprint
 from typer import Argument, Exit, Option, Typer
 
-from core.cli.command.pipeline.service import (
+from cli.command.pipeline.service import (
     run_pipeline_async,
     validate_config_async,
 )
