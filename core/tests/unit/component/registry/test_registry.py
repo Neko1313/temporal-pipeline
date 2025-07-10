@@ -76,13 +76,10 @@ def count_entry_points_plugins() -> dict[str, int]:
 
 async def test_registry_initialize(empty_registry: PluginRegistry) -> None:
     """Тест метода initialize()."""
-    # До инициализации реестр пустой
     assert len(empty_registry._plugins) == 0
 
-    # После инициализации должны быть загружены плагины
     await empty_registry.initialize()
 
-    # Проверяем что плагины загрузились
     all_plugins = empty_registry.get_all_plugins()
     assert isinstance(all_plugins, dict)
 

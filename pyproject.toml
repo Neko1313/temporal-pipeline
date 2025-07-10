@@ -32,8 +32,8 @@ http_extract = { workspace = true }
 
 [dependency-groups]
 dev = [
+    "polyfactory>=2.22.0",
     "pre-commit>=4.2.0",
-    "pydocstyle>=6.3.0",
     "pyright>=1.1.402",
     "pytest>=8.4.1",
     "pytest-asyncio>=1.0.0",
