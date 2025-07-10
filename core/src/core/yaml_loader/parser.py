@@ -11,8 +11,8 @@ ENV_VAR_PATTERN = re.compile(r"\$\{([^}]+)\}")
 
 
 class YAMLConfigParser:
-    def parse_file(self, config_path: Path) -> PipelineConfig:
-        """Парсит YAML файл и возвращает валидированную конфигурацию."""
+    @classmethod
+    def parse_file(cls, config_path: Path) -> PipelineConfig:
         if not config_path.exists():
             msg = f"Config file not found: {config_path}"
             raise FileNotFoundError(msg)
@@ -21,14 +21,11 @@ class YAMLConfigParser:
             with open(config_path, encoding="utf-8") as file:
                 raw_config = yaml.safe_load(file)
 
-            # Подставляем environment variables
-            processed_config = self._substitute_env_vars(raw_config)
+            processed_config = cls._substitute_env_vars(raw_config)
 
-            # Валидируем конфигурацию
             pipeline_config = PipelineConfig(**processed_config)
 
-            # Проверяем наличие всех требуемых environment variables
-            self._validate_env_vars(pipeline_config)
+            cls._validate_env_vars(pipeline_config)
 
             return pipeline_config
 
@@ -39,23 +36,21 @@ class YAMLConfigParser:
             msg = f"Error parsing config {config_path}: {ex}"
             raise ValueError(msg) from ex
 
-    def _substitute_env_vars(self, obj: Any) -> Any:
+    @classmethod
+    def _substitute_env_vars(cls, obj: Any) -> Any:
         if isinstance(obj, dict):
-            return {k: self._substitute_env_vars(v) for k, v in obj.items()}
+            return {k: cls._substitute_env_vars(v) for k, v in obj.items()}
         if isinstance(obj, list):
-            return [self._substitute_env_vars(item) for item in obj]
+            return [cls._substitute_env_vars(item) for item in obj]
         if isinstance(obj, str):
-            return self._substitute_string_env_vars(obj)
+            return cls._substitute_string_env_vars(obj)
         return obj
 
     @staticmethod
     def _substitute_string_env_vars(text: str) -> str:
-        """Подставляет environment variables в строке."""
-
         def replace_var(match: re.Match[str]) -> str:
             var_name = match.group(1)
 
-            # Поддержка default значений: ${VAR_NAME:default_value}
             if ":" in var_name:
                 var_name, default_value = var_name.split(":", 1)
                 return os.environ.get(var_name, default_value)
@@ -69,7 +64,6 @@ class YAMLConfigParser:
 
     @staticmethod
     def _validate_env_vars(config: PipelineConfig) -> None:
-        """Проверяет наличие всех требуемых environment variables."""
         missing_vars = []
 
         for var_name in config.required_env_vars:

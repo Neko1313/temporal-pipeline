@@ -28,7 +28,8 @@ stages:
       add_metadata: true
       deduplicate: false
 
-required_env_vars: []
+required_env_vars:
+  - ENV_NAME
 
 max_parallel_stages: 2
 default_timeout: 300
