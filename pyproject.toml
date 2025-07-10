@@ -40,7 +40,7 @@ dev = [
     "pytest-cov>=6.2.1",
     "pytest-randomly>=3.16.0",
     "ruff>=0.12.2",
-    "testcontainers[temporal]>=4.10.0",
+    "testcontainers>=4.10.0",
 ]
 
 # Lintter settings

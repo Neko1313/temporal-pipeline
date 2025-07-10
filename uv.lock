@@ -1138,7 +1138,7 @@ dev = [
     { name = "pytest-cov", specifier = ">=6.2.1" },
     { name = "pytest-randomly", specifier = ">=3.16.0" },
     { name = "ruff", specifier = ">=0.12.2" },
-    { name = "testcontainers", extras = ["temporal"], specifier = ">=4.10.0" },
+    { name = "testcontainers", specifier = ">=4.10.0" },
 ]
 
 [[package]]
