@@ -21,10 +21,10 @@ jobs:
         run: uv sync --locked --all-extras --dev
 
       - name: 🔍 Check lint
-        run: uv run ruff check --fix core plugins
+        run: uv run ruff check --fix core plugins cli
 
       - name: 📋 Check type
-        run: uv run pyright core plugins
+        run: uv run pyright core plugins cli
 
   test:
     name: 🧪 Test
