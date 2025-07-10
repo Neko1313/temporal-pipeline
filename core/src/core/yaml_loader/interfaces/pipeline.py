@@ -11,7 +11,7 @@ class PipelineConfig(BaseModel):
     description: str = ""
     version: str = Field(default="1.0.0", pattern=r"^\d+\.\d+\.\d+$")
     stages: dict[str, StageConfig] = Field(min_length=1)
-    schedule: ScheduleConfig = Field(default_factory=ScheduleConfig)
+    schedule: ScheduleConfig = Field(default_factory=ScheduleConfig)  # type: ignore
     execution_metadata: dict[str, str | bool] = Field(default_factory=dict)
 
     # Global settings

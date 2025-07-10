@@ -13,8 +13,9 @@ CRON_REGEX = re.compile(
     (?P<month>(\*|(1[0-2]|0?[1-9])(-(1[0-2]|0?[1-9]))?)(/\d+)?(,(\*|1[0-2]|0?[1-9])(-(1[0-2]|0?[1-9]))?(/\d+)?)*)\s+
     (?P<weekday>(\*|[0-7](-[0-7])?)(/\d+)?(,(\*|[0-7])(-[0-7])?(/\d+)?)*)$
     """,
-    re.VERBOSE
+    re.VERBOSE,
 )
+
 
 class ScheduleConfig(BaseModel):
     enabled: bool = Field(default=False, description="Включить расписание")
