@@ -1,0 +1,27 @@
+[project]
+name = "cli"
+version = "0.1.0"
+description = "CLI interface for interacting with temporal-pipeline"
+readme = "README.md"
+authors = [
+    { name = "Neko1313", email = "89246763535@mail.ru" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "core",
+    "typer>=0.16.0",
+]
+
+# CLI Interface
+[project.scripts]
+temporal-pipeline = "cli:app"
+tpd = "cli:app"
+pipeline = "cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv.sources]
+core = { workspace = true }
+
