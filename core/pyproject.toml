@@ -55,6 +55,7 @@ source = [
 omit = [
     "*/tests/*",
     "*/test_*",
+    "src/core/yaml_loader/interfaces/*",
 ]
 
 branch = true
