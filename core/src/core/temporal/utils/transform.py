@@ -5,7 +5,7 @@ from temporalio import workflow
 from temporalio.common import RetryPolicy
 from temporalio.exceptions import ActivityError
 
-from core.temporal.activities import execute_stage_activity
+from core.temporal.activities import stage_activity
 from core.temporal.interfaces import (
     PipelineExecutionResult,
     StageExecutionResult,
@@ -144,7 +144,7 @@ def _create_stage_task(
     resilience_config = pipeline_config.get_effective_resilience(stage_name)
 
     return workflow.execute_activity(
-        execute_stage_activity,
+        stage_activity,
         args=[
             stage_name,
             stage_config.model_dump(),

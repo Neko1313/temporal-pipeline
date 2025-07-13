@@ -9,7 +9,7 @@ from cli.command.worker.const import WORKER_INFO
 from core.component import PluginRegistry
 from core.temporal.activities import (
     cleanup_pipeline_data_activity,
-    execute_stage_activity,
+    stage_activity,
     validate_pipeline_activity,
 )
 from core.temporal.scheduled_workflow import ScheduledPipelineWorkflow
@@ -47,7 +47,7 @@ async def start_worker_async(
         task_queue=task_queue,
         workflows=[DataPipelineWorkflow, ScheduledPipelineWorkflow],
         activities=[
-            execute_stage_activity,
+            stage_activity,
             validate_pipeline_activity,
             cleanup_pipeline_data_activity,
         ],

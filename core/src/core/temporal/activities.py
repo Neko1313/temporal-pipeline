@@ -20,7 +20,7 @@ activity_logger = logging.getLogger("temporal_activity")
 
 
 @activity.defn
-async def execute_stage_activity(  # noqa: PLR0913, PLR0915, PLR0912
+async def stage_activity(  # noqa: PLR0913, PLR0915, PLR0912
     stage_name: str,
     stage_config: dict[str, Any],
     run_id: str,
@@ -130,7 +130,7 @@ async def execute_stage_activity(  # noqa: PLR0913, PLR0915, PLR0912
                 f"Set temporal input data: {type(deserialized_input)}"
             )
 
-        result = await _execute_component_with_resilience(
+        result = await _component_with_retry_politic(
             component, stage_name, resilience_config
         )
 
@@ -420,13 +420,13 @@ def _count_records_from_result(result: Result) -> int:
     return 1
 
 
-async def _execute_component_with_resilience(
+async def _component_with_retry_politic(
     component: BaseProcessClass,
     stage_name: str,
-    resilience_config: dict[str, Any] | None,
+    retry_politic_config: dict[str, Any] | None,
 ) -> Result:
     """Выполняет компонент с учетом retry_politic настроек."""
-    if not resilience_config:
+    if not retry_politic_config:
         response = await component.process()
         if response is None:
             return Result(
@@ -435,25 +435,25 @@ async def _execute_component_with_resilience(
             )
         return response
 
-    execution_timeout = resilience_config.get("execution_timeout")
+    execution_timeout = retry_politic_config.get("execution_timeout")
 
-    async def execute_with_timeout() -> Result:
-        response_execute_with_timeout = await component.process()
-        if response_execute_with_timeout is None:
+    async def with_timeout() -> Result:
+        response_with_timeout = await component.process()
+        if response_with_timeout is None:
             return Result(
                 response=None,
                 status="success",
             )
-        return response_execute_with_timeout
+        return response_with_timeout
 
     if execution_timeout:
         try:
             return await asyncio.wait_for(
-                execute_with_timeout(), timeout=execution_timeout
+                with_timeout(), timeout=execution_timeout
             )
         except TimeoutError as te:
             msg = f"Stage {stage_name} execution\
              exceeded timeout of {execution_timeout} seconds"
             raise TimeoutError(msg) from te
     else:
-        return await execute_with_timeout()
+        return await with_timeout()
