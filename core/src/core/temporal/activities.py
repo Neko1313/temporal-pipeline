@@ -425,7 +425,7 @@ async def _execute_component_with_resilience(
     stage_name: str,
     resilience_config: dict[str, Any] | None,
 ) -> Result:
-    """Выполняет компонент с учетом resilience настроек."""
+    """Выполняет компонент с учетом retry_politic настроек."""
     if not resilience_config:
         response = await component.process()
         if response is None:

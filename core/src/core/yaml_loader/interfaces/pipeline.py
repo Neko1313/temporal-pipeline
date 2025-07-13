@@ -18,7 +18,7 @@ class PipelineConfig(BaseModel):
     max_parallel_stages: int = Field(default=3, ge=1, le=10)
     default_timeout: int = Field(default=300, gt=0)
 
-    # Global default resilience (can be overridden per stage)
+    # Global default retry_politic (can be overridden per stage)
     default_resilience: ResilienceConfig = Field(
         default_factory=ResilienceConfig
     )
@@ -47,7 +47,7 @@ class PipelineConfig(BaseModel):
         return v
 
     def get_effective_resilience(self, stage_name: str) -> ResilienceConfig:
-        """Получает эффективную конфигурацию resilience для стадии."""
+        """Получает эффективную конфигурацию retry_politic для стадии."""
         stage = self.stages.get(stage_name)
         if not stage:
             return self.default_resilience

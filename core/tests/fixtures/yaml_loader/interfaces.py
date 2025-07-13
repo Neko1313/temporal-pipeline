@@ -1,3 +1,5 @@
+from os import environ
+
 from polyfactory.factories.pydantic_factory import ModelFactory
 from polyfactory.pytest_plugin import register_fixture
 
@@ -15,10 +17,15 @@ class FactoryScheduleConfig(ModelFactory[ScheduleConfig]):
         return cls.__random__.choice(["0 0 0 0 0", "0 0 0 1 0", "0 0 0 0 1"])
 
 
+@register_fixture(name="factory_stage_config")
 class FactoryStageConfig(ModelFactory[StageConfig]):
     @classmethod
     def depends_on(cls) -> list[str]:
         return []
+
+    @classmethod
+    def component_config(cls) -> dict:
+        return {"test": "${TEST_ENV}"}
 
 
 @register_fixture(name="factory_pipeline_config")
@@ -35,4 +42,5 @@ class FactoryPipelineConfig(ModelFactory[PipelineConfig]):
 
     @classmethod
     def required_env_vars(cls) -> list[str]:
-        return []
+        environ["TEST_ENV"] = "test"
+        return ["TEST_ENV"]
