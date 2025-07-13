@@ -123,7 +123,7 @@ class PluginRegistry:
         self,
         plugin_type: str | None,
         plugin_name: str | None,
-        config_data: dict[str, Any],
+        config_data: ComponentConfig,
     ) -> dict[str, Any]:
         """
         Валидирует конфигурацию компонента.
@@ -146,7 +146,7 @@ class PluginRegistry:
             }
 
         try:
-            plugin_instance = plugin_class(ComponentConfig(**config_data))
+            plugin_instance = plugin_class(config_data)
 
             return {
                 "valid": True,

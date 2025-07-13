@@ -26,7 +26,6 @@ class DataPipelineWorkflow:
         start_time = workflow.now()
         stage_results = []
         execution_metadata = init_execution_metadata()
-
         try:
             execution_order = build_execution_order(pipeline_config.stages)
             execution_metadata.update(

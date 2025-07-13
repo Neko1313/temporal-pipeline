@@ -22,8 +22,8 @@ class YAMLConfigParser:
                 raw_config = yaml.safe_load(file)
 
             processed_config = cls._substitute_env_vars(raw_config)
-
             pipeline_config = PipelineConfig(**processed_config)
+            print(pipeline_config)
 
             cls._validate_env_vars(pipeline_config)
 

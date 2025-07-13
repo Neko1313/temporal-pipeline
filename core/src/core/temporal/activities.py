@@ -14,25 +14,27 @@ from core.component import (
     PluginRegistry,
     Result,
 )
+from core.yaml_loader.interfaces import PipelineConfig
 from core.temporal.interfaces import StageExecutionResult
+from core.yaml_loader.interfaces import ResilienceConfig, StageConfig
 
 activity_logger = logging.getLogger("temporal_activity")
 
 
 @activity.defn
-async def stage_activity(  # noqa: PLR0913, PLR0915, PLR0912
+async def stage_activity(  # noqa: PLR0913
     stage_name: str,
-    stage_config: dict[str, Any],
+    stage_config: StageConfig,
     run_id: str,
     pipeline_name: str,
     input_data: dict[str, Any] | None = None,
-    resilience_config: dict[str, Any] | None = None,
+    resilience_config: ResilienceConfig | None = None,
 ) -> StageExecutionResult:
     activity_logger.info(
         "Executing stage: %s (%s.%s)",
         stage_name,
-        stage_config["stage"],
-        stage_config["component"],
+        stage_config.stage,
+        stage_config.component,
     )
     start_time = time()
 
@@ -41,11 +43,11 @@ async def stage_activity(  # noqa: PLR0913, PLR0915, PLR0912
 
     resilience_info = {
         "attempt": attempt_number,
-        "max_attempts": resilience_config.get("max_attempts", 3)
+        "max_attempts": resilience_config.max_attempts
         if resilience_config
         else 3,
-        "component_type": stage_config["stage"],
-        "component_name": stage_config["component"],
+        "component_type": stage_config.stage,
+        "component_name": stage_config.component,
     }
 
     try:
@@ -53,22 +55,23 @@ async def stage_activity(  # noqa: PLR0913, PLR0915, PLR0912
         await registry.initialize()
 
         component_class = registry.get_plugin(
-            stage_config["stage"], stage_config["component"]
+            stage_config.stage, stage_config.component
         )
         if not component_class:
-            available = registry.list_plugins(stage_config["stage"])
+            available = registry.list_plugins(stage_config.stage)
             msg = (
-                f"Component '{stage_config['component']}' "
-                f"of type '{stage_config['stage']}' not found. "
-                f"Available: {available.get(stage_config['stage'], [])}"
+                f"Component '{stage_config.component}' "
+                f"of type '{stage_config.stage}' not found. "
+                f"Available: {available.get(stage_config.stage, [])}"
             )
             raise ValueError(msg)
 
         component_info = registry.get_plugin_info(
-            stage_config["stage"], stage_config["component"]
+            stage_config.stage, stage_config.component
         )
 
-        config_data = stage_config.get("component_config", {}).copy()
+        config_data = stage_config.component_config
+        activity_logger.info(config_data)
 
         activity_logger.debug(f"Raw stage_config: {stage_config}")
         activity_logger.debug(f"Extracted component_config: {config_data}")
@@ -84,7 +87,7 @@ async def stage_activity(  # noqa: PLR0913, PLR0915, PLR0912
             config_fields = component_info.config_class.model_fields.keys()
             for field, value in metadata_fields.items():
                 if field in config_fields:
-                    config_data[field] = value
+                    setattr(config_data, field, value)
 
         if input_data:
             deserialized_input = _deserialize_input_data(input_data)
@@ -92,37 +95,12 @@ async def stage_activity(  # noqa: PLR0913, PLR0915, PLR0912
                 "Deserialized input data: %s", type(deserialized_input)
             )
 
-            if stage_config["stage"] == "transform":
-                config_data["_temporal_input_data"] = deserialized_input
+            if stage_config.stage == "transform":
+                config_data.temporal_input_data = deserialized_input
 
-        if component_info and component_info.config_class:
-            try:
-                activity_logger.debug(
-                    "Creating config with class: %s",
-                    component_info.config_class.__name__,
-                )
-                activity_logger.debug(
-                    "Config data keys: %s", list(config_data.keys())
-                )
-                config_instance = component_info.config_class(**config_data)
-                activity_logger.debug("Successfully created config instance")
-            except Exception as ex:
-                activity_logger.error(
-                    "Failed to create %s: %s",
-                    component_info.config_class.__name__,
-                    ex,
-                )
-                activity_logger.error(f"Config data: {config_data}")
-                raise ex
-        else:
-            activity_logger.warning(
-                "No config class found, using ComponentConfig"
-            )
-            config_instance = ComponentConfig(**config_data)
+        component = component_class(config_data)
 
-        component = component_class(config_instance)
-
-        if input_data and stage_config["stage"] == "transform":
+        if input_data and stage_config.stage == "transform":
             deserialized_input = _deserialize_input_data(input_data)
             # Устанавливаем атрибут напрямую в объект конфигурации
             component.config._temporal_input_data = deserialized_input
@@ -147,8 +125,8 @@ async def stage_activity(  # noqa: PLR0913, PLR0915, PLR0912
                     "attempt": attempt_number,
                 },
                 "component_info": {
-                    "type": stage_config["stage"],
-                    "name": stage_config["component"],
+                    "type": stage_config.stage,
+                    "name": stage_config.component,
                 },
                 "performance": {
                     "execution_time": execution_time,
@@ -193,8 +171,8 @@ async def stage_activity(  # noqa: PLR0913, PLR0915, PLR0912
                     "attempt": attempt_number,
                 },
                 "component_info": {
-                    "type": stage_config["stage"],
-                    "name": stage_config["component"],
+                    "type": stage_config.stage,
+                    "name": stage_config.component,
                 },
             },
             resilience_info=resilience_info,
@@ -207,7 +185,7 @@ async def stage_activity(  # noqa: PLR0913, PLR0915, PLR0912
 
         activity_logger.error(
             f"Stage {stage_name} "
-            f"({stage_config['stage']}.{stage_config['component']}) "
+            f"({stage_config.stage}.{stage_config.component}) "
             f"failed on attempt {attempt_number}: {error_msg}"
         )
 
@@ -234,8 +212,8 @@ async def stage_activity(  # noqa: PLR0913, PLR0915, PLR0912
                     "attempt": attempt_number,
                 },
                 "component_info": {
-                    "type": stage_config["stage"],
-                    "name": stage_config["component"],
+                    "type": stage_config.stage,
+                    "name": stage_config.component,
                 },
             },
             resilience_info=resilience_info,
@@ -251,7 +229,6 @@ async def validate_pipeline_activity(
     activity_logger.info("Validating pipeline configuration")
 
     try:
-        from core.yaml_loader.interfaces import PipelineConfig  # noqa: PLC0415
 
         config = PipelineConfig(**pipeline_config)
         registry = PluginRegistry()
@@ -273,7 +250,7 @@ async def validate_pipeline_activity(
                 )
                 continue
 
-            config_data = {} or stage_config.component_config
+            config_data = ComponentConfig() or stage_config.component_config
             validation_result = await registry.validate_component_config(
                 stage_config.stage, stage_config.component, config_data
             )
@@ -423,7 +400,7 @@ def _count_records_from_result(result: Result) -> int:
 async def _component_with_retry_politic(
     component: BaseProcessClass,
     stage_name: str,
-    retry_politic_config: dict[str, Any] | None,
+    retry_politic_config: ResilienceConfig | None,
 ) -> Result:
     """Выполняет компонент с учетом retry_politic настроек."""
     if not retry_politic_config:
@@ -435,7 +412,7 @@ async def _component_with_retry_politic(
             )
         return response
 
-    execution_timeout = retry_politic_config.get("execution_timeout")
+    execution_timeout = retry_politic_config.execution_timeout
 
     async def with_timeout() -> Result:
         response_with_timeout = await component.process()

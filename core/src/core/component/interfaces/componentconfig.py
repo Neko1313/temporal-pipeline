@@ -11,3 +11,5 @@ class ComponentConfig(BaseModel):
     stage_name: str | None = Field(default=None)
     attempt: int | None = Field(default=None)
     input_data: Any = Field(default=None)
+
+    temporal_input_data: Any = Field(default=None)

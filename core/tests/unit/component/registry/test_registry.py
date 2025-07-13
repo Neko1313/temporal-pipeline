@@ -318,10 +318,11 @@ async def test_validate_component_config_success(
 
     if all_plugins.get("extract"):
         plugin_name = next(iter(all_plugins["extract"].keys()))
-        config_data = {"run_id": "test_run", "pipeline_name": "test_pipeline"}
 
         result = await initialized_registry.validate_component_config(
-            "extract", plugin_name, config_data
+            "extract",
+            plugin_name,
+            ComponentConfig(run_id="test_run", pipeline_name="test_pipeline"),
         )
 
         assert isinstance(result, dict)
@@ -336,10 +337,9 @@ async def test_validate_component_config_plugin_not_found(
     initialized_registry: PluginRegistry,
 ) -> None:
     """Тест валидации конфигурации для несуществующего плагина."""
-    config_data = {"run_id": "test_run"}
 
     result = await initialized_registry.validate_component_config(
-        "extract", "nonexistent_plugin", config_data
+        "extract", "nonexistent_plugin", ComponentConfig(run_id="test_run")
     )
 
     assert result["valid"] is False
@@ -356,10 +356,9 @@ async def test_validate_component_config_invalid_config(
 
     if all_plugins.get("extract"):
         plugin_name = next(iter(all_plugins["extract"].keys()))
-        config_data = {"run_id": 123}
 
         result = await initialized_registry.validate_component_config(
-            "extract", plugin_name, config_data
+            "extract", plugin_name, ComponentConfig(run_id="123")
         )
 
         assert isinstance(result, dict)
@@ -457,9 +456,10 @@ async def test_full_workflow(empty_registry: PluginRegistry) -> None:
             assert plugin_info.type_module == plugin_type
 
             # 6. Валидируем конфигурацию
-            config_data = {"run_id": "test", "pipeline_name": "test"}
             validation_result = await empty_registry.validate_component_config(
-                plugin_type, plugin_name, config_data
+                plugin_type,
+                plugin_name,
+                ComponentConfig(run_id="test", pipeline_name="test"),
             )
             assert "valid" in validation_result
 
@@ -608,7 +608,7 @@ async def test_validate_component_config_exception_handling() -> None:
     registry.register_plugin("extract", "problematic", ProblematicPlugin)
 
     result = await registry.validate_component_config(
-        "extract", "problematic", {"run_id": "test"}
+        "extract", "problematic", ComponentConfig(run_id="test")
     )
 
     assert result["valid"] is False
@@ -693,16 +693,24 @@ async def test_validate_component_config_edge_cases() -> None:
         registry = PluginRegistry()
         await registry.initialize()
 
-        result = await registry.validate_component_config(None, "test", {})
+        result = await registry.validate_component_config(
+            None, "test", ComponentConfig()
+        )
         assert result["valid"] is False
 
-        result = await registry.validate_component_config("extract", None, {})
+        result = await registry.validate_component_config(
+            "extract", None, ComponentConfig()
+        )
         assert result["valid"] is False
 
-        result = await registry.validate_component_config("", "test", {})
+        result = await registry.validate_component_config(
+            "", "test", ComponentConfig()
+        )
         assert result["valid"] is False
 
-        result = await registry.validate_component_config("extract", "", {})
+        result = await registry.validate_component_config(
+            "extract", "", ComponentConfig()
+        )
         assert result["valid"] is False
 
 

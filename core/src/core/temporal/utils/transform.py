@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -147,11 +148,11 @@ def _create_stage_task(
         stage_activity,
         args=[
             stage_name,
-            stage_config.model_dump(),
+            stage_config,
             run_id,
             pipeline_config.name,
             _prepare_input_data(stage_config, stage_data),
-            resilience_config.model_dump(),
+            resilience_config,
         ],
         start_to_close_timeout=timedelta(
             seconds=resilience_config.execution_timeout
