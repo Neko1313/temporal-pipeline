@@ -1,6 +1,7 @@
 """Обновленные Temporal Activities с правильной инициализацией конфигурации."""
 
 import asyncio
+import io
 import logging
 from time import time
 from typing import Any
@@ -11,12 +12,16 @@ from temporalio import activity
 from core.component import (
     BaseProcessClass,
     ComponentConfig,
+    Info,
     PluginRegistry,
     Result,
 )
-from core.yaml_loader.interfaces import PipelineConfig
 from core.temporal.interfaces import StageExecutionResult
-from core.yaml_loader.interfaces import ResilienceConfig, StageConfig
+from core.yaml_loader.interfaces import (
+    PipelineConfig,
+    ResilienceConfig,
+    StageConfig,
+)
 
 activity_logger = logging.getLogger("temporal_activity")
 
@@ -70,24 +75,17 @@ async def stage_activity(  # noqa: PLR0913
             stage_config.stage, stage_config.component
         )
 
-        config_data = stage_config.component_config
-        activity_logger.info(config_data)
+        config_data = _create_component_config(
+            component_info,
+            stage_config,
+            run_id,
+            pipeline_name,
+            stage_name,
+            attempt_number,
+        )
 
-        activity_logger.debug(f"Raw stage_config: {stage_config}")
-        activity_logger.debug(f"Extracted component_config: {config_data}")
-
-        metadata_fields = {
-            "run_id": run_id,
-            "pipeline_name": pipeline_name,
-            "stage_name": stage_name,
-            "attempt": attempt_number,
-        }
-
-        if component_info and component_info.config_class:
-            config_fields = component_info.config_class.model_fields.keys()
-            for field, value in metadata_fields.items():
-                if field in config_fields:
-                    setattr(config_data, field, value)
+        activity_logger.info(f"Created config: {type(config_data).__name__}")
+        activity_logger.debug(f"Config data: {config_data}")
 
         if input_data:
             deserialized_input = _deserialize_input_data(input_data)
@@ -102,7 +100,6 @@ async def stage_activity(  # noqa: PLR0913
 
         if input_data and stage_config.stage == "transform":
             deserialized_input = _deserialize_input_data(input_data)
-            # Устанавливаем атрибут напрямую в объект конфигурации
             component.config._temporal_input_data = deserialized_input
             activity_logger.debug(
                 f"Set temporal input data: {type(deserialized_input)}"
@@ -134,7 +131,6 @@ async def stage_activity(  # noqa: PLR0913
                 },
             }
 
-            # Сериализуем результат для передачи следующим стадиям
             if result.response is not None:
                 metadata["result_data"] = _serialize_result_data(
                     result.response
@@ -220,7 +216,50 @@ async def stage_activity(  # noqa: PLR0913
         )
 
 
-# Остальные функции остаются без изменений
+def _create_component_config(  # noqa: PLR0913
+    component_info: Info | None,
+    stage_config: StageConfig,
+    run_id: str,
+    pipeline_name: str,
+    stage_name: str,
+    attempt_number: int,
+) -> ComponentConfig:
+    """Создает правильную конфигурацию для компонента."""
+
+    if not component_info or not component_info.config_class:
+        config_class = ComponentConfig
+    else:
+        config_class = component_info.config_class
+
+    config_dict = {}
+    if hasattr(stage_config.component_config, "__dict__"):
+        config_dict = stage_config.component_config.__dict__.copy()
+    elif isinstance(stage_config.component_config, BaseModel):
+        config_dict = stage_config.component_config.model_dump()
+    else:
+        try:
+            config_dict = dict(stage_config.component_config)
+        except Exception as ex:
+            logging.warn(ex)
+            config_dict = {}
+
+    metadata_fields = {
+        "run_id": run_id,
+        "pipeline_name": pipeline_name,
+        "stage_name": stage_name,
+        "attempt": attempt_number,
+    }
+
+    config_dict.update(metadata_fields)
+
+    try:
+        return config_class(**config_dict)
+    except Exception as e:
+        activity_logger.error(f"Failed to create {config_class.__name__}: {e}")
+        activity_logger.error(f"Config dict: {config_dict}")
+        raise
+
+
 @activity.defn
 async def validate_pipeline_activity(
     pipeline_config: dict[str, Any],
@@ -229,7 +268,6 @@ async def validate_pipeline_activity(
     activity_logger.info("Validating pipeline configuration")
 
     try:
-
         config = PipelineConfig(**pipeline_config)
         registry = PluginRegistry()
         await registry.initialize()
@@ -322,55 +360,108 @@ async def cleanup_pipeline_data_activity(
         }
 
 
-# === HELPER ФУНКЦИИ ===
+def _deserialize_input_data(input_data: dict[str, Any]) -> Any:  # noqa: PLR0911 PLR0912
+    if not isinstance(input_data, dict):
+        return input_data
 
+    data_type = input_data.get("type")
+    data_content = input_data.get("data")
 
-def _deserialize_input_data(data: dict[str, Any]) -> Any:  # noqa: PLR0911
-    """Десериализует входные данные из metadata предыдущих стадий."""
-    if "polars_data" in data:
+    if data_type == "polars_dataframe" and data_content:
         try:
             import polars as pl  # noqa: PLC0415
 
-            return pl.read_json(data["polars_data"])
+            if isinstance(data_content, str):
+                return pl.read_json(io.StringIO(data_content))
+            return pl.DataFrame(data_content)
+        except ImportError:
+            activity_logger.warning("Polars not available for deserialization")
+            return data_content
+        except Exception as e:
+            activity_logger.error(
+                f"Failed to deserialize polars dataframe: {e}"
+            )
+            return data_content
+
+    if data_type == "polars_series" and data_content:
+        try:
+            import polars as pl  # noqa: PLC0415
+
+            name = input_data.get("name", "values")
+            return pl.Series(name=name, values=data_content)
+        except ImportError:
+            return data_content
+        except Exception as e:
+            activity_logger.error(f"Failed to deserialize polars series: {e}")
+            return data_content
+
+    if data_type == "native":
+        return data_content
+
+    if data_type == "pydantic":
+        return data_content
+
+    if "polars_data" in input_data:
+        try:
+            import polars as pl  # noqa: PLC0415
+
+            return pl.read_json(io.StringIO(input_data["polars_data"]))
         except ImportError:
             pass
 
-    if "dict_data" in data:
-        return data["dict_data"]
-    if "pydantic_data" in data:
-        return data["pydantic_data"]
-    if "raw_data" in data:
-        return data["raw_data"]
-    if "records" in data:
+    if "dict_data" in input_data:
+        return input_data["dict_data"]
+
+    if "raw_data" in input_data:
+        return input_data["raw_data"]
+
+    if "records" in input_data:
         try:
             import polars as pl  # noqa: PLC0415
 
-            return pl.DataFrame(data["records"])
+            return pl.DataFrame(input_data["records"])
         except ImportError:
-            return data["records"]
-    else:
-        return data
+            return input_data["records"]
+
+    return input_data
 
 
 def _serialize_result_data(data: Any) -> dict[str, Any]:
-    """Сериализует результат для передачи между стадиями."""
     try:
         import polars as pl  # noqa: PLC0415
 
         if isinstance(data, pl.DataFrame):
             return {
-                "polars_data": data.write_json(),
+                "type": "polars_dataframe",
+                "data": data.write_json(),
                 "records_count": len(data),
-                "columns": data.columns,
+                "columns": list(
+                    data.columns
+                ),  # Убеждаемся что это список строк
+                "shape": [len(data), len(data.columns)],
             }
+
+        if isinstance(data, pl.Series):
+            # Конвертируем Series в список
+            return {
+                "type": "polars_series",
+                "data": data.to_list(),
+                "name": data.name,
+                "length": len(data),
+            }
+
     except ImportError:
         pass
 
-    if isinstance(data, dict):
-        return {"dict_data": data}
+    # Для других типов данных
+    if isinstance(data, dict | list | str | int | float | bool | type(None)):
+        return {"type": "native", "data": data}
+
     if isinstance(data, BaseModel):
-        return {"pydantic_data": data.model_dump()}
-    return {"raw_data": str(data)}
+        return {"type": "pydantic", "data": data.model_dump()}
+
+    # Последний резерв - конвертируем в строку
+    return {"type": "string", "data": str(data)}
 
 
 def _count_records_from_result(result: Result) -> int:
@@ -429,8 +520,10 @@ async def _component_with_retry_politic(
                 with_timeout(), timeout=execution_timeout
             )
         except TimeoutError as te:
-            msg = f"Stage {stage_name} execution\
-             exceeded timeout of {execution_timeout} seconds"
+            msg = (
+                f"Stage {stage_name} execution exceeded "
+                f"timeout of {execution_timeout} seconds"
+            )
             raise TimeoutError(msg) from te
     else:
         return await with_timeout()

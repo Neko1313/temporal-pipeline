@@ -2,6 +2,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from core.component.interfaces.componentconfig import ComponentConfig
+
 
 class Info(BaseModel):
     name: str
@@ -9,4 +11,4 @@ class Info(BaseModel):
     description: str | None = None
     type_class: object
     type_module: Literal["extract", "transform", "load", "core"]
-    config_class: type[BaseModel]
+    config_class: type[ComponentConfig]
