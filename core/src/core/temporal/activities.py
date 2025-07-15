@@ -435,14 +435,11 @@ def _serialize_result_data(data: Any) -> dict[str, Any]:
                 "type": "polars_dataframe",
                 "data": data.write_json(),
                 "records_count": len(data),
-                "columns": list(
-                    data.columns
-                ),  # Убеждаемся что это список строк
+                "columns": list(data.columns),
                 "shape": [len(data), len(data.columns)],
             }
 
         if isinstance(data, pl.Series):
-            # Конвертируем Series в список
             return {
                 "type": "polars_series",
                 "data": data.to_list(),
@@ -453,14 +450,12 @@ def _serialize_result_data(data: Any) -> dict[str, Any]:
     except ImportError:
         pass
 
-    # Для других типов данных
     if isinstance(data, dict | list | str | int | float | bool | type(None)):
         return {"type": "native", "data": data}
 
     if isinstance(data, BaseModel):
         return {"type": "pydantic", "data": data.model_dump()}
 
-    # Последний резерв - конвертируем в строку
     return {"type": "string", "data": str(data)}
 
 
