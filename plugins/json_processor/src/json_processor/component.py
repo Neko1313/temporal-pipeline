@@ -216,7 +216,7 @@ class JSONTransform(BaseProcessClass[JSONTransformConfig]):
         return data
 
     @classmethod
-    def info(cls) -> Info:
+    def process_info(cls) -> Info:
         return Info(
             name="JSONTransform",
             version="1.0.0",

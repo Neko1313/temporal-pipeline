@@ -40,7 +40,7 @@ class PluginRegistry:
         try:
             for entry_point in group_entries:
                 plugin_class: type[BaseProcessClass] = entry_point.load()
-                plugin_class_info = plugin_class.info()
+                plugin_class_info = plugin_class.process_info()
 
                 if group_name != plugin_class_info.type_module:
                     msg = "Plugin info error"
@@ -151,8 +151,8 @@ class PluginRegistry:
             return {
                 "valid": True,
                 "errors": [],
-                "component_info": plugin_instance.info().model_dump()
-                if hasattr(plugin_instance.info, "model_dump")
+                "component_info": plugin_instance.process_info().model_dump()
+                if hasattr(plugin_instance.process_info, "model_dump")
                 else None,
             }
 
@@ -192,7 +192,7 @@ class PluginRegistry:
             msg = "Plugin class must inherit from BaseProcessClass"
             raise ValueError(msg)
 
-        plugin_info = plugin_class.info()
+        plugin_info = plugin_class.process_info()
 
         self._plugins[plugin_type][plugin_name] = plugin_info
         self._plugin_classes[plugin_type][plugin_name] = plugin_class

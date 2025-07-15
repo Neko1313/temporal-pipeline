@@ -21,4 +21,4 @@ async def test_raise_fin_process() -> None:
 
 def test_info_process() -> None:
     base_process = BaseProcessClass(ComponentConfig())
-    assert base_process.info() == BASE_INFO
+    assert base_process.process_info() == BASE_INFO

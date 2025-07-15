@@ -10,7 +10,7 @@ class BaseProcess(Protocol):
     async def process(self) -> Result: ...  # pragma: no cover
 
     @classmethod
-    def info(cls) -> Info: ...  # pragma: no cover
+    def process_info(cls) -> Info: ...  # pragma: no cover
 
 
 class BaseProcessClass[T_Config: ComponentConfig]:
@@ -23,5 +23,5 @@ class BaseProcessClass[T_Config: ComponentConfig]:
         raise NotImplementedError(ERROR_MESSAGE)
 
     @classmethod
-    def info(cls) -> Info:
+    def process_info(cls) -> Info:
         return BASE_INFO

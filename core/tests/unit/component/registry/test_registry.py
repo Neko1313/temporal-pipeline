@@ -49,7 +49,7 @@ def mock_plugin_class() -> type[BaseProcessClass]:
             )
 
         @classmethod
-        def info(cls) -> Info:
+        def process_info(cls) -> Info:
             return Info(
                 name="MockPlugin",
                 version="1.0.0",
@@ -162,7 +162,7 @@ async def test_discover_plugin_group_wrong_type_module(
             )
 
         @classmethod
-        def info(cls) -> Info:
+        def process_info(cls) -> Info:
             return Info(
                 name="WrongTypePlugin",
                 version="1.0.0",
@@ -595,7 +595,7 @@ async def test_validate_component_config_exception_handling() -> None:
             )
 
         @classmethod
-        def info(cls) -> Info:
+        def process_info(cls) -> Info:
             return Info(
                 name="ProblematicPlugin",
                 version="1.0.0",
@@ -628,7 +628,7 @@ async def test_discover_plugin_group_registry_error() -> None:
             )
 
         @classmethod
-        def info(cls) -> Info:
+        def process_info(cls) -> Info:
             return Info(
                 name="BadTypePlugin",
                 version="1.0.0",

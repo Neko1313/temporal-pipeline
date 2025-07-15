@@ -115,18 +115,6 @@ def test_get_env_vars_from_config() -> None:
         os.unlink(temp_file_path)
 
 
-def test_parse_interval_to_seconds_valid() -> None:
-    assert YAMLConfigParser.parse_interval_to_seconds("30s") == SEC_30
-    assert YAMLConfigParser.parse_interval_to_seconds("5m") == MINUTE * 5
-    assert YAMLConfigParser.parse_interval_to_seconds("2h") == 2 * HOUR
-    assert YAMLConfigParser.parse_interval_to_seconds("1d") == DAY
-
-
-def test_parse_interval_to_seconds_invalid() -> None:
-    with pytest.raises(ValueError, match="Invalid interval format: invalid"):
-        YAMLConfigParser.parse_interval_to_seconds("invalid")
-
-
 def test_error_load_file() -> None:
     path = Path(__file__).parent / "error" / "error.yml"
     with pytest.raises(FileNotFoundError) as ex_info:

@@ -53,16 +53,16 @@ class YAMLConfigParser:
             if ":" in var_name:
                 var_name, default_value = var_name.split(":", 1)
                 return os.environ.get(var_name, default_value)
-            value = os.environ.get(var_name)
-            if value is None:
+            env_value = os.environ.get(var_name)
+            if env_value is None:
                 msg = f"Required environment variable not set: {var_name}"
                 raise ValueError(msg)
-            return value
+            return env_value
 
         return ENV_VAR_PATTERN.sub(replace_var, text)
 
-    @staticmethod
-    def _validate_env_vars(config: PipelineConfig) -> None:
+    @classmethod
+    def _validate_env_vars(cls, config: PipelineConfig) -> None:
         missing_vars = []
 
         for var_name in config.required_env_vars:
@@ -73,32 +73,16 @@ class YAMLConfigParser:
             msg = f"Missing required environment variables: {missing_vars}"
             raise ValueError(msg)
 
-    @staticmethod
-    def get_env_vars_from_config(config_path: Path) -> set[str]:
-        with open(config_path, encoding="utf-8") as f:
-            content = f.read()
+    @classmethod
+    def get_env_vars_from_config(cls, config_path: Path) -> set[str]:
+        with open(config_path, encoding="utf-8") as file_yaml:
+            yaml_content = file_yaml.read()
 
         env_vars = set()
-        for match in ENV_VAR_PATTERN.finditer(content):
+        for match in ENV_VAR_PATTERN.finditer(yaml_content):
             var_name = match.group(1)
             if ":" in var_name:
                 var_name = var_name.split(":", 1)[0]
             env_vars.add(var_name)
 
         return env_vars
-
-    @staticmethod
-    def parse_interval_to_seconds(interval: str) -> int:
-        pattern = r"^(\d+)([smhd])$"
-        match = re.match(pattern, interval)
-
-        if not match:
-            msg = f"Invalid interval format: {interval}"
-            raise ValueError(msg)
-
-        value, unit = match.groups()
-        value = int(value)
-
-        multipliers = {"s": 1, "m": 60, "h": 3600, "d": 86400}
-
-        return value * multipliers[unit]

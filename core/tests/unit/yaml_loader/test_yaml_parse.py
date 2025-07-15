@@ -35,5 +35,7 @@ def get_config_yml_parse_path_file(
 
 
 def test_yaml_loader_parse_file(get_config_yml_parse_path_file: str) -> None:
-    result = YAMLConfigParser.parse_file(Path(get_config_yml_parse_path_file))
-    logging.info(result)
+    yaml_config_parser_result = YAMLConfigParser.parse_file(
+        Path(get_config_yml_parse_path_file)
+    )
+    logging.info(yaml_config_parser_result)

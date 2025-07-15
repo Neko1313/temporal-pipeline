@@ -568,7 +568,7 @@ class HTTPExtract(BaseProcessClass[HTTPExtractConfig]):
         return hashlib.sha256(cache_string.encode()).hexdigest()
 
     @classmethod
-    def info(cls) -> Info:
+    def process_info(cls) -> Info:
         return Info(
             name="HTTPExtract",
             version="1.0.0",

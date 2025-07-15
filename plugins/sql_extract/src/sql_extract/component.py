@@ -253,7 +253,7 @@ class SQLExtract(BaseProcessClass[SQLExtractConfig]):
             logger.debug("SQLAlchemy движок закрыт")
 
     @classmethod
-    def info(cls) -> Info:
+    def process_info(cls) -> Info:
         return Info(
             name="SQLExtract",
             version="1.0.0",
