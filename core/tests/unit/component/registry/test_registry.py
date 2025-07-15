@@ -495,7 +495,6 @@ async def test_concurrent_access() -> None:
 async def test_registry_with_mock_plugins() -> None:
     """Тест реестра с полностью мокированными плагинами."""
 
-    # Создаем мок entry point
     mock_entry_point = Mock()
     mock_entry_point.name = "test_plugin"
     mock_entry_point.load.return_value = type(
@@ -506,7 +505,7 @@ async def test_registry_with_mock_plugins() -> None:
                 config  # type: ignore
             ),
             "process": lambda self: {"status": "success"},  # noqa: ARG005
-            "info": classmethod(
+            "process_info": classmethod(
                 lambda cls: Info(
                     name="TestPlugin",
                     version="1.0.0",
