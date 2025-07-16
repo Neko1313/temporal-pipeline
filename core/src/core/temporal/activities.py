@@ -4,10 +4,8 @@ import asyncio
 import io
 import logging
 from time import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from pandas import DataFrame as PandasDataFrame
-from polars import DataFrame as PolarDataFrame
 from pydantic import BaseModel
 from temporalio import activity
 
@@ -25,6 +23,10 @@ from core.yaml_loader.interfaces import (
     ResilienceConfig,
     StageConfig,
 )
+
+if TYPE_CHECKING:
+    from pandas import DataFrame as PandasDataFrame
+    from polars import DataFrame as PolarsDataFrame
 
 activity_logger = logging.getLogger("temporal_activity")
 
@@ -441,7 +443,27 @@ def _count_records_from_result(result: Result | None) -> int:
     return 1
 
 
-def _polars_serialize(data: PolarDataFrame) -> dict[str, Any]:
+def _get_polars_dataframe() -> type["PolarsDataFrame"] | None:
+    """Ленивый импорт Polars DataFrame."""
+    try:
+        from polars import DataFrame  # noqa: PLC0415
+
+        return DataFrame
+    except ImportError:
+        return None
+
+
+def _get_pandas_dataframe() -> type["PandasDataFrame"] | None:
+    """Ленивый импорт Polars DataFrame."""
+    try:
+        from pandas import DataFrame  # noqa: PLC0415
+
+        return DataFrame
+    except ImportError:
+        return None
+
+
+def _polars_serialize(data: "PolarsDataFrame") -> dict[str, Any]:
     return {
         "type": "polars_dataframe",
         "shape": data.shape,
@@ -455,7 +477,7 @@ def _polars_serialize(data: PolarDataFrame) -> dict[str, Any]:
     }
 
 
-def _pandas_serialize(data: PandasDataFrame) -> dict[str, Any]:
+def _pandas_serialize(data: "PandasDataFrame") -> dict[str, Any]:
     return {
         "type": "pandas_dataframe",
         "shape": data.shape,
@@ -470,10 +492,13 @@ def _pandas_serialize(data: PandasDataFrame) -> dict[str, Any]:
 
 def _serialize_result_data(data: Any) -> Any:  # noqa: PLR0911
     """Сериализует данные результата для сохранения."""
-    if isinstance(data, PolarDataFrame):
+    polar_df_type = _get_polars_dataframe()
+    pandas_df_type = _get_pandas_dataframe()
+
+    if polar_df_type and isinstance(data, polar_df_type):
         return _polars_serialize(data)
 
-    if isinstance(data, PandasDataFrame):
+    if pandas_df_type and isinstance(data, pandas_df_type):
         return _pandas_serialize(data)
 
     if isinstance(data, BaseModel):
