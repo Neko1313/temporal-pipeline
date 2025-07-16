@@ -5,15 +5,12 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 
-# Dependencies
 dependencies = [
     "core",
-    "cli",
-    "json_processor",
-    "sql_extract",
-    "http_extract",
-    "pandas>=2.3.1",
 ]
+
+[tool.setuptools]
+packages = ["core", "cli", "plugins"]
 
 [tool.uv.workspace]
 members = [
@@ -31,7 +28,7 @@ sql_extract = { workspace = true }
 json_processor = { workspace = true }
 http_extract = { workspace = true }
 
-[dependency-groups]
+[project.optional-dependencies]
 dev = [
     "polyfactory>=2.22.0",
     "pre-commit>=4.2.0",
@@ -44,7 +41,17 @@ dev = [
     "testcontainers>=4.10.0",
 ]
 
-# Lintter settings
+cli = ["cli"]
+json_processor = ["json_processor"]
+sql_extract = ["sql_extract"]
+http_extract = ["http_extract"]
+all = [
+    "cli",
+    "json_processor",
+    "sql_extract",
+    "http_extract",
+]
+
 [tool.ruff]
 line-length = 79
 target-version = "py313"
@@ -77,4 +84,3 @@ convention = "google"
 [tool.pyright]
 include = ["core", "plugins"]
 pythonVersion = "3.12"
-

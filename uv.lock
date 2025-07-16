@@ -257,6 +257,7 @@ name = "core"
 version = "0.1.0"
 source = { editable = "core" }
 dependencies = [
+    { name = "pandas" },
     { name = "polars" },
     { name = "pydantic" },
     { name = "pyyaml" },
@@ -265,6 +266,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "pandas", specifier = ">=2.3.1" },
     { name = "polars", specifier = ">=1.31.0" },
     { name = "pydantic", specifier = ">=2.11.7" },
     { name = "pyyaml", specifier = ">=6.0.2" },
@@ -1208,15 +1210,19 @@ name = "temporal-pipeline"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
-    { name = "cli" },
     { name = "core" },
-    { name = "http-extract" },
-    { name = "json-processor" },
-    { name = "pandas" },
-    { name = "sql-extract" },
 ]
 
-[package.dev-dependencies]
+[package.optional-dependencies]
+all = [
+    { name = "cli" },
+    { name = "http-extract" },
+    { name = "json-processor" },
+    { name = "sql-extract" },
+]
+cli = [
+    { name = "cli" },
+]
 dev = [
     { name = "polyfactory" },
     { name = "pre-commit" },
@@ -1228,29 +1234,38 @@ dev = [
     { name = "ruff" },
     { name = "testcontainers" },
 ]
+http-extract = [
+    { name = "http-extract" },
+]
+json-processor = [
+    { name = "json-processor" },
+]
+sql-extract = [
+    { name = "sql-extract" },
+]
 
 [package.metadata]
 requires-dist = [
-    { name = "cli", editable = "cli" },
+    { name = "cli", marker = "extra == 'all'", editable = "cli" },
+    { name = "cli", marker = "extra == 'cli'", editable = "cli" },
     { name = "core", editable = "core" },
-    { name = "http-extract", editable = "plugins/http_extract" },
-    { name = "json-processor", editable = "plugins/json_processor" },
-    { name = "pandas", specifier = ">=2.3.1" },
-    { name = "sql-extract", editable = "plugins/sql_extract" },
+    { name = "http-extract", marker = "extra == 'all'", editable = "plugins/http_extract" },
+    { name = "http-extract", marker = "extra == 'http-extract'", editable = "plugins/http_extract" },
+    { name = "json-processor", marker = "extra == 'all'", editable = "plugins/json_processor" },
+    { name = "json-processor", marker = "extra == 'json-processor'", editable = "plugins/json_processor" },
+    { name = "polyfactory", marker = "extra == 'dev'", specifier = ">=2.22.0" },
+    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.2.0" },
+    { name = "pyright", marker = "extra == 'dev'", specifier = ">=1.1.402" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4.1" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=1.0.0" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=6.2.1" },
+    { name = "pytest-randomly", marker = "extra == 'dev'", specifier = ">=3.16.0" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.12.2" },
+    { name = "sql-extract", marker = "extra == 'all'", editable = "plugins/sql_extract" },
+    { name = "sql-extract", marker = "extra == 'sql-extract'", editable = "plugins/sql_extract" },
+    { name = "testcontainers", marker = "extra == 'dev'", specifier = ">=4.10.0" },
 ]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "polyfactory", specifier = ">=2.22.0" },
-    { name = "pre-commit", specifier = ">=4.2.0" },
-    { name = "pyright", specifier = ">=1.1.402" },
-    { name = "pytest", specifier = ">=8.4.1" },
-    { name = "pytest-asyncio", specifier = ">=1.0.0" },
-    { name = "pytest-cov", specifier = ">=6.2.1" },
-    { name = "pytest-randomly", specifier = ">=3.16.0" },
-    { name = "ruff", specifier = ">=0.12.2" },
-    { name = "testcontainers", specifier = ">=4.10.0" },
-]
+provides-extras = ["dev", "cli", "json-processor", "sql-extract", "http-extract", "all"]
 
 [[package]]
 name = "temporalio"
