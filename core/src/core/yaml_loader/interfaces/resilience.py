@@ -1,6 +1,6 @@
-from typing import Literal
-
 from pydantic import BaseModel, Field
+
+from core.temporal.constants import RetryPolicy
 
 
 class ResilienceConfig(BaseModel):
@@ -8,12 +8,7 @@ class ResilienceConfig(BaseModel):
     initial_delay: float = Field(default=1.0, ge=0.1)
     max_delay: float = Field(default=60.0, ge=1.0)
     backoff_multiplier: float = Field(default=2.0, ge=1.0, le=5.0)
-    retry_policy: Literal[
-        "exponential_backoff",
-        "linear_backoff",
-        "fixed_interval",
-        "fibonacci_backoff",
-    ] = "exponential_backoff"
+    retry_policy: RetryPolicy = RetryPolicy.EXPONENTIAL
     jitter: bool = True
 
     circuit_breaker_enabled: bool = Field(default=True)

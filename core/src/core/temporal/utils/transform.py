@@ -6,6 +6,7 @@ from temporalio.common import RetryPolicy
 from temporalio.exceptions import ActivityError
 
 from core.temporal.activities import stage_activity
+from core.temporal.constants import ExecutionStatus
 from core.temporal.interfaces import (
     PipelineExecutionResult,
     StageExecutionResult,
@@ -168,7 +169,7 @@ def _create_failed_result(
 
     return StageExecutionResult(
         stage_name=stage_name,
-        status="failed",
+        status=ExecutionStatus.SUCCESS,
         records_processed=0,
         execution_time=0.0,
         error_message=str(error),
@@ -217,7 +218,7 @@ def build_success_result(
     return PipelineExecutionResult(
         pipeline_name=pipeline_config.name,
         run_id=run_id,
-        status="success",
+        status=ExecutionStatus.SUCCESS,
         total_records_processed=total_records,
         total_execution_time=execution_time,
         stage_results=stage_results,
@@ -250,7 +251,7 @@ def build_error_result(  # noqa: PLR0913
     return PipelineExecutionResult(
         pipeline_name=pipeline_config.name,
         run_id=run_id,
-        status="failed",
+        status=ExecutionStatus.FAILED,
         total_execution_time=execution_time,
         stage_results=stage_results,
         error_message=str(error),

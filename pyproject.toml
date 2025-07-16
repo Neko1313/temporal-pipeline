@@ -12,6 +12,7 @@ dependencies = [
     "json_processor",
     "sql_extract",
     "http_extract",
+    "pandas>=2.3.1",
 ]
 
 [tool.uv.workspace]

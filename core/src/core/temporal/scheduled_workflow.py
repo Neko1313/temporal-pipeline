@@ -1,3 +1,5 @@
+"""Workflow для запуска пайплайна по расписанию."""
+
 import uuid
 from datetime import datetime
 
@@ -10,6 +12,8 @@ from core.yaml_loader.interfaces import PipelineConfig
 
 @workflow.defn
 class ScheduledPipelineWorkflow:
+    """Workflow для выполнения пайплайна по расписанию."""
+
     @workflow.run
     async def run(
         self,
@@ -17,28 +21,15 @@ class ScheduledPipelineWorkflow:
         schedule_id: str,
         scheduled_time: str,
     ) -> PipelineExecutionResult:
-        timestamp = datetime.fromisoformat(
-            scheduled_time.replace("Z", "+00:00")
-        )
-        run_id = f"scheduled_{schedule_id}_{timestamp.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"  # noqa: E501
+        """Запускает пайплайн по расписанию."""
+        run_id = _generate_scheduled_run_id(schedule_id, scheduled_time)
 
         workflow.logger.info(
-            f"Starting scheduled pipeline execution: {run_id}"
+            "Starting scheduled pipeline execution: %s", run_id
         )
 
-        if (
-            not hasattr(pipeline_config, "execution_metadata")
-            or pipeline_config.execution_metadata is None
-        ):
-            pipeline_config.execution_metadata = {}
-
-        pipeline_config.execution_metadata.update(
-            {
-                "scheduled": True,
-                "schedule_id": schedule_id,
-                "scheduled_time": scheduled_time,
-                "execution_type": "scheduled",
-            }
+        _update_execution_metadata(
+            pipeline_config, schedule_id, scheduled_time
         )
 
         result = await workflow.execute_child_workflow(
@@ -47,13 +38,55 @@ class ScheduledPipelineWorkflow:
             id=f"pipeline-{run_id}",
         )
 
-        if result.execution_metadata:
-            result.execution_metadata.update(
-                {
-                    "scheduled": True,
-                    "schedule_id": schedule_id,
-                    "scheduled_time": scheduled_time,
-                }
-            )
+        _enrich_result_metadata(result, schedule_id, scheduled_time)
 
         return result
+
+
+def _generate_scheduled_run_id(
+    schedule_id: str,
+    scheduled_time: str,
+) -> str:
+    """Генерирует уникальный идентификатор для запуска по расписанию."""
+    timestamp = datetime.fromisoformat(scheduled_time.replace("Z", "+00:00"))
+
+    return (
+        f"scheduled_{schedule_id}_"
+        f"{timestamp.strftime('%Y%m%d_%H%M%S')}_"
+        f"{uuid.uuid4().hex[:8]}"
+    )
+
+
+def _update_execution_metadata(
+    pipeline_config: PipelineConfig,
+    schedule_id: str,
+    scheduled_time: str,
+) -> None:
+    """Обновляет метаданные выполнения для запуска по расписанию."""
+    if not hasattr(pipeline_config, "execution_metadata"):
+        pipeline_config.execution_metadata = {}
+
+    pipeline_config.execution_metadata.update(
+        {
+            "scheduled": True,
+            "schedule_id": schedule_id,
+            "scheduled_time": scheduled_time,
+            "execution_type": "scheduled",
+        }
+    )
+
+
+def _enrich_result_metadata(
+    result: PipelineExecutionResult,
+    schedule_id: str,
+    scheduled_time: str,
+) -> None:
+    """Обогащает метаданные результата информацией о расписании."""
+    if result.execution_metadata:
+        result.execution_metadata.update(
+            {
+                "scheduled": True,
+                "schedule_id": schedule_id,
+                "scheduled_time": scheduled_time,
+            }
+        )
