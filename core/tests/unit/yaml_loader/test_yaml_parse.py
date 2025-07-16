@@ -21,7 +21,7 @@ def get_config_yml_parse_path_file(
         mode="w", suffix=".yml", delete=False, encoding="utf-8"
     ) as temp_file:
         yaml.dump(
-            model_pipeline_config.model_dump(),
+            model_pipeline_config.model_dump(mode='json'),
             temp_file,
             indent=2,
         )
