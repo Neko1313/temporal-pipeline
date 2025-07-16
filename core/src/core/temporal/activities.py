@@ -32,7 +32,7 @@ activity_logger = logging.getLogger("temporal_activity")
 
 
 @activity.defn
-async def stage_activity(
+async def activity_stage(
     stage_activity: StageActivity,
 ) -> StageExecutionResult:
     """Выполняет отдельный этап пайплайна."""

@@ -10,16 +10,6 @@ def prepare_input_data(
     stage_config: StageConfig,
     stage_data: dict[str, StageExecutionResult],
 ) -> dict[str, Any] | None:
-    """
-    Подготавливает входные данные для этапа на основе зависимостей.
-
-    Args:
-        stage_config: Конфигурация этапа
-        stage_data: Данные от предыдущих этапов
-
-    Returns:
-        Словарь с входными данными или None
-    """
     if not stage_config.depends_on:
         return None
 

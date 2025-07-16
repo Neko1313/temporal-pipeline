@@ -1,5 +1,6 @@
 """Управление выполнением этапов пайплайна."""
 
+import logging
 from datetime import timedelta
 from typing import Any
 
@@ -7,26 +8,16 @@ from temporalio import workflow
 from temporalio.exceptions import ActivityError
 
 from core.enums import ExecutionStatus
-from core.temporal.activities import stage_activity
+from core.temporal.activities import activity_stage
 from core.temporal.interfaces import StageActivity, StageExecutionResult
 from core.temporal.utils.helpers import prepare_input_data
 from core.temporal.utils.retry import create_retry_policy
 from core.yaml_loader.interfaces import PipelineConfig, StageConfig
 
+logger = logging.getLogger(__name__)
+
 
 def build_execution_order(stages: dict[str, StageConfig]) -> list[list[str]]:
-    """
-    Определяет порядок выполнения этапов с учетом зависимостей.
-
-    Args:
-        stages: Словарь конфигураций этапов
-
-    Returns:
-        Список батчей для параллельного выполнения
-
-    Raises:
-        ValueError: При обнаружении циклических зависимостей
-    """
     execution_order = []
     remaining_stages = set(stages.keys())
 
@@ -44,7 +35,6 @@ def build_execution_order(stages: dict[str, StageConfig]) -> list[list[str]]:
 
 
 def init_execution_metadata() -> dict[str, Any]:
-    """Инициализирует метаданные выполнения."""
     workflow_info = workflow.info()
 
     return {
@@ -60,18 +50,6 @@ async def execute_stage_batch(
     run_id: str,
     stage_data: dict[str, StageExecutionResult],
 ) -> list[StageExecutionResult]:
-    """
-    Выполняет батч этапов параллельно.
-
-    Args:
-        stage_batch: Список имен этапов для выполнения
-        pipeline_config: Конфигурация пайплайна
-        run_id: Идентификатор запуска
-        stage_data: Данные от предыдущих этапов
-
-    Returns:
-        Список результатов выполнения
-    """
     tasks = _create_stage_tasks(
         stage_batch, pipeline_config, run_id, stage_data
     )
@@ -125,7 +103,7 @@ def _create_single_stage_task(
     resilience_config = pipeline_config.get_effective_resilience(stage_name)
 
     return workflow.execute_activity(
-        stage_activity,
+        activity_stage,
         args=[
             StageActivity(
                 stage_name=stage_name,
@@ -153,7 +131,7 @@ async def _execute_tasks_with_error_handling(
     for stage_name, task in tasks:
         try:
             result = await task
-            workflow.logger.info(
+            logger.info(
                 "Stage %s completed: %s records",
                 stage_name,
                 result.records_processed,
@@ -162,7 +140,7 @@ async def _execute_tasks_with_error_handling(
 
         except ActivityError as e:
             failed_result = _create_activity_error_result(stage_name, e)
-            workflow.logger.error("Stage %s failed: %s", stage_name, str(e))
+            logger.error("Stage %s failed: %s", stage_name, str(e))
             results.append(failed_result)
 
     return results

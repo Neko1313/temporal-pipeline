@@ -8,8 +8,8 @@ from temporalio.worker import Worker
 from cli.command.worker.const import WORKER_INFO
 from core.component import PluginRegistry
 from core.temporal.activities import (
+    activity_stage,
     cleanup_pipeline_data_activity,
-    stage_activity,
     validate_pipeline_activity,
 )
 from core.temporal.scheduled_workflow import ScheduledPipelineWorkflow
@@ -47,7 +47,7 @@ async def start_worker_async(
         task_queue=task_queue,
         workflows=[DataPipelineWorkflow, ScheduledPipelineWorkflow],
         activities=[
-            stage_activity,
+            activity_stage,
             validate_pipeline_activity,
             cleanup_pipeline_data_activity,
         ],

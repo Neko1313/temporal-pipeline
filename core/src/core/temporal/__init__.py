@@ -1,8 +1,8 @@
 """Temporal workflow и activities для обработки данных."""
 
 from core.temporal.activities import (
+    activity_stage,
     cleanup_pipeline_data_activity,
-    stage_activity,
     validate_pipeline_activity,
 )
 from core.temporal.interfaces import (
@@ -19,8 +19,8 @@ __all__ = [
     "ScheduledPipelineWorkflow",
     # Interfaces
     "StageExecutionResult",
-    "cleanup_pipeline_data_activity",
     # Activities
-    "stage_activity",
+    "activity_stage",
+    "cleanup_pipeline_data_activity",
     "validate_pipeline_activity",
 ]
