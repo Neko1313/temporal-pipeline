@@ -5,7 +5,7 @@ from typing import Any
 
 from temporalio import workflow
 
-from core.temporal.constants import ExecutionStatus
+from core.enums import ExecutionStatus
 from core.temporal.interfaces import (
     ErrorMetadata,
     PipelineExecutionResult,

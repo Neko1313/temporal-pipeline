@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 
-from core.temporal.constants import RetryPolicy
+from core.enums import RetryPolicy
 
 
 class ResilienceConfig(BaseModel):

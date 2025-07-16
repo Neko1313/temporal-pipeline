@@ -18,7 +18,7 @@ from core.component import (
     PluginRegistry,
     Result,
 )
-from core.temporal.constants import ComponentType, ExecutionStatus
+from core.enums import ComponentType, ExecutionStatus
 from core.temporal.interfaces import StageActivity, StageExecutionResult
 from core.yaml_loader.interfaces import (
     PipelineConfig,

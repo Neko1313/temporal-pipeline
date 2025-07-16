@@ -5,8 +5,8 @@ from temporalio import workflow
 from temporalio.common import RetryPolicy
 from temporalio.exceptions import ActivityError
 
+from core.enums import ExecutionStatus
 from core.temporal.activities import stage_activity
-from core.temporal.constants import ExecutionStatus
 from core.temporal.interfaces import (
     PipelineExecutionResult,
     StageExecutionResult,

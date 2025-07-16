@@ -5,13 +5,11 @@ from typing import NamedTuple
 
 from temporalio.common import RetryPolicy
 
+from core.enums import ErrorType
+from core.enums import RetryPolicy as RetryPolicyType
 from core.temporal.constants import (
     FIBONACCI_COEFFICIENT,
     LINEAR_COEFFICIENT,
-    ErrorType,
-)
-from core.temporal.constants import (
-    RetryPolicy as RetryPolicyType,
 )
 from core.yaml_loader.interfaces import ResilienceConfig
 

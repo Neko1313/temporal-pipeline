@@ -5,7 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from core.temporal.constants import ExecutionStatus
+from core.enums import ExecutionStatus
 from core.yaml_loader.interfaces.pipeline import PipelineConfig
 from core.yaml_loader.interfaces.resilience import ResilienceConfig
 from core.yaml_loader.interfaces.stage import StageConfig
@@ -73,6 +73,8 @@ class PipelineExecutionResult(BaseModel):
 
 
 class ErrorMetadata(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     pipeline_config: PipelineConfig
     run_id: str
     start_time: datetime

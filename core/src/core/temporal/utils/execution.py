@@ -6,8 +6,8 @@ from typing import Any
 from temporalio import workflow
 from temporalio.exceptions import ActivityError
 
+from core.enums import ExecutionStatus
 from core.temporal.activities import stage_activity
-from core.temporal.constants import ExecutionStatus
 from core.temporal.interfaces import StageActivity, StageExecutionResult
 from core.temporal.utils.helpers import prepare_input_data
 from core.temporal.utils.retry import create_retry_policy
