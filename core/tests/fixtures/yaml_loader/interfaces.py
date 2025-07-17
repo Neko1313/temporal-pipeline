@@ -7,8 +7,10 @@ from core.temporal import StageExecutionResult
 from core.yaml_loader.interfaces import PipelineConfig, StageConfig
 from core.yaml_loader.interfaces.schedule import ScheduleConfig
 
+
 @register_fixture(name="factory_stage_execution_result")
 class FactoryStageExecutionResult(ModelFactory[StageExecutionResult]): ...
+
 
 class FactoryScheduleConfig(ModelFactory[ScheduleConfig]):
     @classmethod
