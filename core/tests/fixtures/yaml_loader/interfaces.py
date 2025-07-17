@@ -3,9 +3,12 @@ from os import environ
 from polyfactory.factories.pydantic_factory import ModelFactory
 from polyfactory.pytest_plugin import register_fixture
 
+from core.temporal import StageExecutionResult
 from core.yaml_loader.interfaces import PipelineConfig, StageConfig
 from core.yaml_loader.interfaces.schedule import ScheduleConfig
 
+@register_fixture(name="factory_stage_execution_result")
+class FactoryStageExecutionResult(ModelFactory[StageExecutionResult]): ...
 
 class FactoryScheduleConfig(ModelFactory[ScheduleConfig]):
     @classmethod
