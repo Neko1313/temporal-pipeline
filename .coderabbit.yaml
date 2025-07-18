@@ -10,6 +10,7 @@ reviews:
   path_filters:
     - "**/*.py"
     - "!**/test_*.py"
+    - "!**/*.lock"
 
 instructions: |
   - Обрати внимание на общую структуру 
