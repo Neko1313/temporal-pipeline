@@ -1,0 +1,19 @@
+# .coderabbit.yaml
+language: ru  # Язык для ревью
+reviews:
+  profile: pythonic
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: true
+  review_status: true
+  collapse_empty_files: true
+  path_filters:
+    - "**/*.py"
+    - "!**/test_*.py"
+
+instructions: |
+  - Обрати внимание на общую структуру 
+  - Проверяй async/await паттерны
+  - Следи за обработкой ошибок в Temporal workflows
+  - Смотри за тем что код не переусложненный
+  - Приводи пример для каждой задачи как лучше исправить
