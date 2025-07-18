@@ -1,0 +1,1 @@
+[![codecov](https://codecov.io/gh/Neko1313/temporal-pipeline/graph/badge.svg?token=A714HK92BK)](https://codecov.io/gh/Neko1313/temporal-pipeline)
