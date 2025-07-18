@@ -1,7 +1,7 @@
 # .coderabbit.yaml
 language: ru  # Язык для ревью
 reviews:
-  profile: pythonic
+  profile: assertive
   request_changes_workflow: false
   high_level_summary: true
   poem: true
