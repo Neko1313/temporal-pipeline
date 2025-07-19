@@ -41,9 +41,7 @@ jobs:
         run: uv sync --locked --all-extras --dev
 
       - name: 🧪 Run test Core
-        run: |
-          cd core
-          uv run pytest -o junit_family=legacy
+        run: uv run pytest -o junit_family=legacy
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5

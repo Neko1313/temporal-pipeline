@@ -11,7 +11,7 @@ from core.temporal.constants import (
     FIBONACCI_COEFFICIENT,
     LINEAR_COEFFICIENT,
 )
-from core.yaml_loader.interfaces import ResilienceConfig
+from core.yaml_loader.interfaces import RetryConfig
 
 
 class RetryIntervals(NamedTuple):
@@ -21,7 +21,7 @@ class RetryIntervals(NamedTuple):
     maximum: timedelta
 
 
-def create_retry_policy(resilience_config: ResilienceConfig) -> RetryPolicy:
+def create_retry_policy(resilience_config: RetryConfig) -> RetryPolicy:
     """
     Создает политику повторных попыток на основе конфигурации.
 
@@ -30,6 +30,7 @@ def create_retry_policy(resilience_config: ResilienceConfig) -> RetryPolicy:
 
     Returns:
         Настроенная политика повторных попыток
+
     """
     intervals = _calculate_intervals(resilience_config)
     coefficient = _get_backoff_coefficient(resilience_config)
@@ -44,7 +45,7 @@ def create_retry_policy(resilience_config: ResilienceConfig) -> RetryPolicy:
 
 
 def _calculate_intervals(
-    resilience_config: ResilienceConfig,
+    resilience_config: RetryConfig,
 ) -> RetryIntervals:
     """Вычисляет интервалы для повторных попыток."""
     initial = timedelta(seconds=resilience_config.initial_delay)
@@ -57,7 +58,7 @@ def _calculate_intervals(
     return RetryIntervals(initial, maximum)
 
 
-def _get_backoff_coefficient(resilience_config: ResilienceConfig) -> float:
+def _get_backoff_coefficient(resilience_config: RetryConfig) -> float:
     """Определяет коэффициент для увеличения задержки."""
     policy_coefficients = {
         RetryPolicyType.EXPONENTIAL: resilience_config.backoff_multiplier,

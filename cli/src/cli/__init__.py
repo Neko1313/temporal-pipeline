@@ -1,4 +1,4 @@
-"""Temporal Pipeline CLI"""
+"""Temporal Pipeline CLI."""
 
 import typer
 from rich import print as rprint
@@ -20,7 +20,7 @@ app.add_typer(worker_app, name="worker")
 
 @app.command()
 def version() -> None:
-    """📋 Show the application version"""
+    """📋 Show the application version."""
     rprint("[bold blue]Temporal Pipeline[/bold blue] [green]v1.0.0[/green]")
     rprint("🏗️  Next generation ETL framework")
 

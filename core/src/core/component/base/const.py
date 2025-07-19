@@ -1,6 +1,8 @@
+"""Const base component."""
+
 from core.component.interfaces import ComponentConfig, Info
 
-ERROR_MESSAGE = "Set the method"
+ERROR_MESSAGE = "Method must be implemented in derived class"
 
 BASE_INFO = Info(
     name="base",

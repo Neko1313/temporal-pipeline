@@ -1,7 +1,23 @@
+"""Utils parsing yaml file."""
+
 from core.yaml_loader.interfaces.stage import StageConfig
 
 
 def has_circular_dependencies(stages: dict[str, StageConfig]) -> bool:
+    """
+    Check if the given stages have a circular dependency.
+
+    stages: Stages configuration
+
+    return: is circular dependency
+    """
+    if not stages:
+        return False
+
+    if not isinstance(stages, dict):
+        msg = "stages must be a dictionary"
+        raise TypeError(msg)
+
     visited = set()
     rec_stack = set()
 
@@ -21,8 +37,6 @@ def has_circular_dependencies(stages: dict[str, StageConfig]) -> bool:
         rec_stack.remove(stage_name)
         return False
 
-    for stage_name in stages:
-        if stage_name not in visited and dfs(stage_name):
-            return True
-
-    return False
+    return any(
+        stage_name not in visited and dfs(stage_name) for stage_name in stages
+    )

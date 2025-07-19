@@ -1,12 +1,16 @@
+"""Type config yml activities."""
+
 from pydantic import BaseModel, Field, field_validator
 
-from core.yaml_loader.interfaces.resilience import ResilienceConfig
+from core.yaml_loader.interfaces.resilience import RetryConfig
 from core.yaml_loader.interfaces.schedule import ScheduleConfig
 from core.yaml_loader.interfaces.stage import StageConfig
 from core.yaml_loader.interfaces.utils import has_circular_dependencies
 
 
 class PipelineConfig(BaseModel):
+    """Pipeline configuration schema."""
+
     name: str = Field(..., min_length=1, max_length=100)
     description: str = ""
     version: str = Field(default="1.0.0", pattern=r"^\d+\.\d+\.\d+$")
@@ -18,10 +22,8 @@ class PipelineConfig(BaseModel):
     max_parallel_stages: int = Field(default=3, ge=1, le=10)
     default_timeout: int = Field(default=300, gt=0)
 
-    # Global default retry_politic (can be overridden per stage)
-    default_resilience: ResilienceConfig = Field(
-        default_factory=ResilienceConfig
-    )
+    # Global default retry_policy (can be overridden per stage)
+    default_resilience: RetryConfig = Field(default_factory=RetryConfig)
 
     # Environment variables
     required_env_vars: list[str] = Field(default_factory=list)
@@ -31,13 +33,14 @@ class PipelineConfig(BaseModel):
     def validate_stage_dependencies(
         cls, v: dict[str, StageConfig]
     ) -> dict[str, StageConfig]:
-        """Проверяет зависимости между стадиями."""
+        """Check the dependencies between stages."""
         stage_names = set(v.keys())
 
         for _stage_name, stage_config in v.items():
             missing_deps = set(stage_config.depends_on) - stage_names
             if missing_deps:
-                msg = "Stage '%s' has missing dependencies: %s"
+                msg = f"Stage '{_stage_name}' \
+                has missing dependencies: {missing_deps}"
                 raise ValueError(msg)
 
         if has_circular_dependencies(v):
@@ -46,8 +49,8 @@ class PipelineConfig(BaseModel):
 
         return v
 
-    def get_effective_resilience(self, stage_name: str) -> ResilienceConfig:
-        """Получает эффективную конфигурацию retry_politic для стадии."""
+    def get_effective_resilience(self, stage_name: str) -> RetryConfig:
+        """Get the effective retry_policy configuration for the stage."""
         stage = self.stages.get(stage_name)
         if not stage:
             return self.default_resilience
@@ -60,4 +63,4 @@ class PipelineConfig(BaseModel):
             **{k: v for k, v in stage_dict.items() if v is not None},
         }
 
-        return ResilienceConfig(**merged)
+        return RetryConfig(**merged)

@@ -20,7 +20,7 @@ from core.enums import ComponentType, ExecutionStatus
 from core.temporal.interfaces import StageActivity, StageExecutionResult
 from core.yaml_loader.interfaces import (
     PipelineConfig,
-    ResilienceConfig,
+    RetryConfig,
     StageConfig,
 )
 
@@ -136,7 +136,7 @@ async def cleanup_pipeline_data_activity(
 
 def _build_resilience_info(
     attempt_number: int,
-    resilience_config: ResilienceConfig | None,
+    resilience_config: RetryConfig | None,
     stage_config: StageConfig,
 ) -> dict[str, Any]:
     """Создает информацию о политике устойчивости."""
@@ -231,7 +231,7 @@ def _create_component_config(
 
 async def _execute_component(
     component: BaseProcessClass,
-    resilience_config: ResilienceConfig | None,
+    resilience_config: RetryConfig | None,
 ) -> Result | None:
     """Выполняет компонент с учетом политики повторных попыток."""
     if resilience_config and resilience_config.execution_timeout:

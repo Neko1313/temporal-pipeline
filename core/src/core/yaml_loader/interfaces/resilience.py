@@ -1,9 +1,13 @@
+"""Type config yml retry politic activity."""
+
 from pydantic import BaseModel, Field
 
 from core.enums import RetryPolicy
 
 
-class ResilienceConfig(BaseModel):
+class RetryConfig(BaseModel):
+    """Retry configuration schema."""
+
     max_attempts: int = Field(default=3, ge=1, le=100)
     initial_delay: float = Field(default=1.0, ge=0.1)
     max_delay: float = Field(default=60.0, ge=1.0)
@@ -22,6 +26,5 @@ class ResilienceConfig(BaseModel):
         default_factory=lambda: [
             "ConnectionError",
             "TimeoutError",
-            "TemporaryFailure",
         ],
     )

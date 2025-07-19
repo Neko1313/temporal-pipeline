@@ -1,3 +1,5 @@
+"""Yaml Loader."""
+
 import os
 import re
 from pathlib import Path
@@ -11,8 +13,17 @@ ENV_VAR_PATTERN = re.compile(r"\$\{([^}]+)\}")
 
 
 class YAMLConfigParser:
+    """Parse a YAML configuration file."""
+
     @classmethod
     def parse_file(cls, config_path: Path) -> PipelineConfig:
+        """
+        Parse yml file into DTO.
+
+        config_path: Path to yml file.
+
+        return: PipelineConfig object.
+        """
         if not config_path.exists():
             msg = f"Config file not found: {config_path}"
             raise FileNotFoundError(msg)
@@ -75,6 +86,13 @@ class YAMLConfigParser:
 
     @classmethod
     def get_env_vars_from_config(cls, config_path: Path) -> set[str]:
+        """
+        Getter environment variables from a file.
+
+        config_path: Path to the YAML configuration file.
+
+        returns: set of environment variables.
+        """
         with open(config_path, encoding="utf-8") as file_yaml:
             yaml_content = file_yaml.read()
 

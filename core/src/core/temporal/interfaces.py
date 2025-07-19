@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from core.enums import ExecutionStatus
 from core.yaml_loader.interfaces.pipeline import PipelineConfig
-from core.yaml_loader.interfaces.resilience import ResilienceConfig
+from core.yaml_loader.interfaces.resilience import RetryConfig
 from core.yaml_loader.interfaces.stage import StageConfig
 
 
@@ -89,4 +89,4 @@ class StageActivity(BaseModel):
     run_id: str
     pipeline_name: str
     input_data: dict[str, Any] | None = None
-    resilience_config: ResilienceConfig | None = None
+    resilience_config: RetryConfig | None = None

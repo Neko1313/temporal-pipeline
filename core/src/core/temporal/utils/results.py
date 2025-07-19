@@ -33,6 +33,7 @@ def build_success_result(
 
     Returns:
         Результат выполнения пайплайна
+
     """
     stats = _calculate_execution_stats(stage_results)
     execution_time = _calculate_total_time(start_time)
@@ -65,8 +66,8 @@ def build_error_result(
 
     Returns:
         Результат выполнения пайплайна с ошибкой
-    """
 
+    """
     workflow.logger.error(
         "Pipeline %s failed: %s",
         error_metadata.pipeline_config.name,
