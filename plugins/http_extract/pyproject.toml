@@ -1,0 +1,26 @@
+[project]
+name = "http-extract"
+version = "1.0.0"
+description = "HTTP/REST API извлечение данных для Temporal Pipeline"
+readme = "README.md"
+authors = [
+    { name = "Neko1313", email = "89246763535@mail.ru" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "core",
+    "polars>=1.31.0",
+    "pydantic>=2.11.7",
+    "aiohttp>=3.8.0",
+    "defusedxml>=0.7.1",
+]
+
+[project.entry-points.extract]
+http_extract = "http_extract:HTTPExtract"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv.sources]
+core = { workspace = true }

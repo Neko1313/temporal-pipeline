@@ -1,0 +1,21 @@
+# .coderabbit.yaml
+language: ru  # Язык для ревью
+reviews:
+  profile: assertive
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: true
+  review_status: true
+  collapse_empty_files: true
+  path_filters:
+    - "**/*.py"
+    - "!**/test_*.py"
+    - "!**/*.lock"
+
+instructions: |
+  - Обрати внимание на общую структуру 
+  - Проверяй async/await паттерны
+  - Следи за обработкой ошибок в Temporal workflows
+  - Смотри за тем что код не переусложненный
+  - Приводи пример для каждой задачи как лучше исправить
+  - Так же создай задачи на все публичные классы методы и функции так же на модули что бы нужно написать документацию, напиши документацию на английском языке выделив место для неё

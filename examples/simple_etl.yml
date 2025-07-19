@@ -1,0 +1,35 @@
+name: "my_first_pipeline"
+description: "Самый простой пример ETL пайплайна"
+version: "1.0.0"
+
+schedule:
+  enabled: false
+
+default_resilience:
+  max_attempts: 2
+  initial_delay: 1.0
+  retry_policy: "exponential_backoff"
+
+stages:
+  extract_data:
+    stage: extract
+    component: http_extract
+    component_config:
+      url: "https://jsonplaceholder.typicode.com/posts/1"
+      method: "GET"
+      response_format: "json"
+      timeout: 30
+
+  transform_data:
+    stage: transform
+    component: json_transform
+    depends_on: [extract_data]
+    component_config:
+      add_metadata: true
+      deduplicate: false
+
+required_env_vars:
+  - ENV_NAME
+
+max_parallel_stages: 2
+default_timeout: 300
